@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ChatGPT">
-<link rel="manifest" href="manifest.webmanifest?v=24">
-<link rel="apple-touch-icon" href="icon-192.png?v=24">
+<link rel="manifest" href="manifest.webmanifest?v=25">
+<link rel="apple-touch-icon" href="icon-192.png?v=25">
 <title>ChatGPT</title>
 <style>
 :root{color-scheme:dark;--bg:#000;--fg:#f5f5f5;--muted:#9b9b9d;--surface:#222224;--surface2:#2d2d30;--outline:#38383b;--header-h:60px;--app-height:100dvh}
@@ -209,6 +209,17 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
    the iPhone safe area behind the footer, with no solid black bar at the edge.
    The composer remains above the home indicator, preserving tap positions. */
 .app.has-messages{padding-bottom:0}
+/* v25: extend ONLY the transcript's lower edge into the area that the iOS
+   standalone viewport sometimes reserves below VisualViewport. Keep the app's
+   origin, fixed header, fixed top gradient, and composer SCREEN positions intact.
+   Never apply when the software keyboard is open. No upper/layout offset. */
+.app.has-messages:not(.keyboard-open){
+ --bottom-bleed:max(env(safe-area-inset-bottom,0px), calc(100dvh - var(--app-height)));
+ height:calc(var(--app-height) + var(--bottom-bleed));
+}
+.app.has-messages:not(.keyboard-open) .composer-region{
+ bottom:calc(env(safe-area-inset-bottom,0px) + var(--bottom-bleed));
+}
 /* v22: the transcript now also extends BEHIND the transparent header.
    On initial load, compensate for the removed header's flow height so the first
    user bubble stays in the same readable position as before. During scrolling,
@@ -356,7 +367,7 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
   </header>
   <main class="conversation" id="conversation" aria-label="Conversa">
     <section class="welcome" id="welcome">
-      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=24" alt="" aria-hidden="true">
+      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=25" alt="" aria-hidden="true">
       <h1 class="welcome-title" data-edit-key="welcome-title">Como posso ajudar?</h1>
     </section>
     <section class="messages" id="messages" aria-live="off"></section>
@@ -718,7 +729,7 @@ function parseRequest(question){
 }
 async function fetchListFile(category){
  if(!category||!/^[a-z0-9]+$/.test(category))throw Error('categoria invalida');
- const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=24&ts='+Date.now(),{cache:'no-store'});
+ const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=25&ts='+Date.now(),{cache:'no-store'});
  if(!response.ok)throw Error('lista nao disponivel');
  const raw=await response.text();
  return raw.replace(/^\uFEFF/,'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -1379,7 +1390,7 @@ function makeLayoutBackup(){
  return {
   format:LAYOUT_BACKUP_FORMAT,
   schemaVersion:LAYOUT_BACKUP_SCHEMA,
-  appVersion:24,
+  appVersion:25,
   exportedAt:new Date().toISOString(),
   settings:cloneProfiles(editing?draftOffsets:savedOffsets)
  };
@@ -1535,7 +1546,7 @@ refreshComposerMeasure();
 // v21: atualização discreta no PRIMEIRO item das conversas recentes.
 // Nenhum redirecionamento automático, nem durante o force nem numa conversa aberta.
 // A consulta bypassa cache HTTP e volta a ser feita a cada abertura do menu.
-const GPT_FORCE_VERSION=24;
+const GPT_FORCE_VERSION=25;
 const DEFAULT_RECENT_TITLE='Quando usar por que e porque';
 let latestAvailableVersion=null;
 let updateCheckSequence=0;
