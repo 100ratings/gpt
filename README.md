@@ -1,38 +1,32 @@
-# GPT Force v32 | Peek de 3 segundos e sinal na pontuação da lista
+# GPT Force v33 | Marcador confiável e degradê inferior contínuo
 
-## Novo comportamento da revelação
-- O toque na região de microfone/voz continua sendo o único gatilho para desaparecer o emoji do item forçado
-- Na hora do toque, somente o ponto após o número do item forçado desaparece, por exemplo `23 Joaninha 🐞`
-- Durante os cinco primeiros segundos, o item conserva o número, a joaninha e a posição na lista
-- Exatamente após 5 segundos, o ponto reaparece, ficando `23. Joaninha 🐞`
-- Durante o sexto segundo, o emoji passa gradualmente de 100% a 0% de opacidade
-- Ao final dos 6 segundos, o emoji fica invisível mantendo o espaço original, evitando deslocamentos de texto
-- A pontuação dos outros itens não muda, e a contagem só funciona quando há um emoji forçado válido
-- Abrir uma nova conversa ou cancelar a resposta interrompe os temporizadores, restaura o ponto e impede efeitos atrasados
+## Marcador visual do truque, prioridade
+- Durante a contagem, somente o ponto da posição forçada desaparece, por exemplo `23 Joaninha 🐞`
+- A implementação agora desativa o marcador nativo desse único item durante a contagem e desenha o número sem ponto usando um pseudo-elemento normal, mais compatível com Safari que alterar o conteúdo de `::marker` isoladamente
+- O número permanece visível e os outros números preservam seus pontos
+- Após 5 segundos, o marcador normal volta a aparecer (`23. Joaninha 🐞`)
+- Durante o sexto segundo, o emoji perde opacidade de maneira gradual até desaparecer, sem deslocar o texto
+- Cancelar a revelação ou abrir uma nova conversa restaura o marcador, sem temporizadores atrasados
 
-## Indicador secreto e peek
-- `Perguntar ao ChatGPT` permanece o texto normal
-- `Perguntar ao ChatGPT.` agora indica **apenas** a ativação do modo secreto, não o efeito da joaninha
-- O número do peek permanece visível por **3 segundos** em vez de 2 segundos
-- Nenhuma alteração na cor, opacidade, tamanho ou posição do peek
+## Degradê inferior
+- Reativado um degradê progressivo suave junto à barra inferior, com início discreto e escurecimento contínuo na região de rolagem
+- A máscara inferior termina em transparência total antes da borda, para que um item que ultrapasse a área visível não apareça truncado
+- A altura, a posição e a intensidade do degradê continuam ajustáveis no editor, com novos padrões iniciais para configurações sem valores salvos
+- **O topo e o degradê superior estão rigorosamente iguais à v32**, verificados por comparação literal
 
-## Integridade
-- Código secreto, corretor nativo, listas, reconhecimento por sinônimos e modos normal/secreto preservados
-- Editor, ajustes da seta com teclado aberto, backups, cache busting e outros controles preservados
-- CSS do cabeçalho e do degradê superior comparados literalmente com a v31, sem alterações
-- Alterações concentradas no marcador de um único item, opacidade do emoji, temporizadores e indicador do campo
-- Comportamento de landscape permanece como na v31
+## Funcionalidades preservadas
+- Modos normal/secreto e código OP=23
+- Peek por 3 segundos, com todas as configurações de tamanho, posição e opacidade preservadas
+- Listas, temporizadores, editor, modo da seta com teclado, backups e orientação de tela
+- O ponto do placeholder continua reservado somente ao modo secreto
 
-## Testes
-- Chromium móvel com entrada secreta OP = 23 e lista de 50 animais: Joaninha aparece na posição 23
-- Peek visível por 3 segundos e ocultado após o tempo configurado
-- Inspeção de ::marker confirma ponto oculto durante a primeira fase e restaurado após 5 segundos
-- No sexto segundo, a opacidade do emoji foi medida entre 0 e 1 antes de chegar a zero
-- Cancelamento por nova conversa validado sem efeitos atrasados
-- Nenhuma alteração na coordenada Y do item durante a revelação
-- Nenhum erro de JavaScript durante os testes automatizados
-- A execução real no Safari/PWA do iPhone ainda exige verificação visual
+## Validação
+- Testes automatizados no Chromium: posição OP=23, número sem ponto durante a contagem, ponto restaurado aos 5 segundos, fade do emoji até os 6 segundos, cancelamento e nova conversa
+- Comprovação visual por captura de tela do item 23 sem ponto
+- Sintaxe JavaScript validada
+- Teste físico no Safari do iPhone ainda é necessário para confirmar o comportamento final no aparelho
 
-## Atualização
-- Arquivos e manifesto possuem cache busting v32
-- `version.json` é publicado por último, ativando a opção de atualização manual no menu
+## Publicação
+- Publicação direta no repositório 100ratings/gpt
+- Cache busting v33 no HTML, manifesto e carregamento das listas
+- version.json atualizado por último para liberar a atualização manual
