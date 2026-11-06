@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ChatGPT">
-<link rel="manifest" href="manifest.webmanifest?v=32">
-<link rel="apple-touch-icon" href="icon-192.png?v=32">
+<link rel="manifest" href="manifest.webmanifest?v=33">
+<link rel="apple-touch-icon" href="icon-192.png?v=33">
 <title>ChatGPT</title>
 <style>
 :root{color-scheme:dark;--bg:#000;--fg:#f5f5f5;--muted:#9b9b9d;--surface:#222224;--surface2:#2d2d30;--outline:#38383b;--header-h:60px;--app-height:100dvh}
@@ -59,7 +59,9 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
 .answer-list li::marker{font-variant-numeric:tabular-nums;color:#e5e5e5}
 /* v32: hide ONLY the punctuation of the forced numbered item during the
    five-second reveal countdown, preserving the list counter and layout. */
-.answer-list li.reveal-dot-hidden::marker{content:counter(list-item) ' '}
+.answer-list li.reveal-dot-hidden::marker{content:''}
+.answer-list li.reveal-dot-hidden{list-style:none;position:relative}
+.answer-list li.reveal-dot-hidden::before{content:attr(data-force-index);position:absolute;right:calc(100% + 7px);top:0;color:#e5e5e5;font-variant-numeric:tabular-nums;white-space:pre}
 .force-emoji{opacity:1;transition:opacity 1s linear}
 .force-emoji.fading{opacity:0}
 @keyframes appear{from{opacity:.15;transform:translateY(3px)}to{opacity:1;transform:none}}
@@ -285,7 +287,8 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
   rgba(0,0,0,var(--mask-bottom-1,.93)) calc(100% - var(--composer-real-height,88px) - (var(--fade-height,140px) * .45) + var(--fade-position,12px)),
   rgba(0,0,0,var(--mask-bottom-2,.84)) calc(100% - var(--composer-real-height,88px) + var(--fade-position,12px)),
   rgba(0,0,0,var(--mask-bottom-3,.73)) calc(100% - (var(--composer-real-height,88px) * .40)),
-  rgba(0,0,0,var(--mask-bottom-4,.66)) 100%);
+  rgba(0,0,0,0) calc(100% - 32px),
+  rgba(0,0,0,0) 100%);
  mask-image:linear-gradient(to bottom,
   rgba(0,0,0,var(--mask-top-0,.10)) 0px,
   rgba(0,0,0,var(--mask-top-1,.23)) 50px,
@@ -297,7 +300,8 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
   rgba(0,0,0,var(--mask-bottom-1,.93)) calc(100% - var(--composer-real-height,88px) - (var(--fade-height,140px) * .45) + var(--fade-position,12px)),
   rgba(0,0,0,var(--mask-bottom-2,.84)) calc(100% - var(--composer-real-height,88px) + var(--fade-position,12px)),
   rgba(0,0,0,var(--mask-bottom-3,.73)) calc(100% - (var(--composer-real-height,88px) * .40)),
-  rgba(0,0,0,var(--mask-bottom-4,.66)) 100%);
+  rgba(0,0,0,0) calc(100% - 32px),
+  rgba(0,0,0,0) 100%);
 }
 .app.has-messages .messages{
  padding-top:calc(11px + env(safe-area-inset-top,0px) + var(--header-h));
@@ -325,15 +329,18 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
  pointer-events:none;
  background:linear-gradient(to bottom,
   rgba(0,0,0,0) 0%,
-  rgba(0,0,0,.05) 20%,
-  rgba(0,0,0,.26) 49%,
-  rgba(0,0,0,.62) 75%,
-  rgba(0,0,0,.88) 90%,
+  rgba(0,0,0,.03) 10%,
+  rgba(0,0,0,.10) 20%,
+  rgba(0,0,0,.24) 34%,
+  rgba(0,0,0,.44) 50%,
+  rgba(0,0,0,.68) 67%,
+  rgba(0,0,0,.86) 82%,
+  rgba(0,0,0,.96) 92%,
   #000 100%);
 }
-/* The old opaque black overlay is intentionally disabled in v23.
-   Position/height settings now affect the conversation's mask directly. */
-.app.has-messages .scroll-fade{display:none}
+/* v33: a smooth black-to-clear fade is attached only to the bottom composer.
+   The conversation mask fades fully to black at the very bottom without a cut. */
+.app.has-messages .scroll-fade{display:block;opacity:1}
 /* v19: fade superior espelhado, com a MESMA curva visual do inferior.
    Fica preso ao cabeçalho e não intercepta gestos nem os botões do topo. */
 .app-header > button{position:relative;z-index:1}
@@ -406,7 +413,7 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
   </header>
   <main class="conversation" id="conversation" aria-label="Conversa">
     <section class="welcome" id="welcome">
-      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=32" alt="" aria-hidden="true">
+      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=33" alt="" aria-hidden="true">
       <h1 class="welcome-title" data-edit-key="welcome-title">Como posso ajudar?</h1>
     </section>
     <section class="messages" id="messages" aria-live="off"></section>
@@ -856,7 +863,7 @@ function parseRequest(question){
 }
 async function fetchListFile(category){
  if(!category||!/^[a-z0-9]+$/.test(category))throw Error('categoria invalida');
- const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=32&ts='+Date.now(),{cache:'no-store'});
+ const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=33&ts='+Date.now(),{cache:'no-store'});
  if(!response.ok)throw Error('lista nao disponivel');
  const raw=await response.text();
  return raw.replace(/^\uFEFF/,'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -1022,6 +1029,7 @@ async function sendRequest(){
        const li=document.createElement('li');
        const item=selectedAnswerList[count];
        if(count===currentPosition-1){
+         li.dataset.forceIndex=String(currentPosition);
          const split=splitEmoji(item);
          if(split){
            li.appendChild(document.createTextNode(split.before));
@@ -1247,12 +1255,12 @@ function cleanSpacingPx(value){
   ?value:DEFAULT_LIST_SPACING;
 }
 // Separate fine adjustments to fade length and position, in 1-pixel steps.
-const DEFAULT_FADE_HEIGHT=140, MIN_FADE_HEIGHT=30, MAX_FADE_HEIGHT=320;
-const DEFAULT_FADE_POSITION=12, MIN_FADE_POSITION=-100, MAX_FADE_POSITION=100;
+const DEFAULT_FADE_HEIGHT=165, MIN_FADE_HEIGHT=30, MAX_FADE_HEIGHT=320;
+const DEFAULT_FADE_POSITION=18, MIN_FADE_POSITION=-100, MAX_FADE_POSITION=100;
 // Ajustes superiores são independentes, os valores inferiores existentes não mudam.
 const DEFAULT_TOP_FADE_HEIGHT=140, MIN_TOP_FADE_HEIGHT=30, MAX_TOP_FADE_HEIGHT=320;
 const DEFAULT_TOP_FADE_POSITION=12, MIN_TOP_FADE_POSITION=-100, MAX_TOP_FADE_POSITION=100;
-const DEFAULT_FADE_OPACITY=85, DEFAULT_TOP_FADE_OPACITY=100;
+const DEFAULT_FADE_OPACITY=100, DEFAULT_TOP_FADE_OPACITY=100;
 const PEEK_MIN_X=-400, PEEK_MAX_X=400, PEEK_MIN_Y=-650, PEEK_MAX_Y=650;
 const PEEK_MIN_SIZE=8, PEEK_MAX_SIZE=48;
 function cleanPeekCoordinate(value,min,max){return Number.isInteger(value)&&value>=min&&value<=max?value:0;}
@@ -1385,7 +1393,7 @@ function redrawOffsets(){
  const topAlphas=[.10,.23,.38,.65,.90];
  // v24: bottom fade NO LONGER becomes a black/near-invisible strip.
  // Even at 100%, content remains visible under the prompt and the footer.
- const bottomAlphas=[.93,.84,.73,.66];
+ const bottomAlphas=[.97,.64,.08,.0];
  topAlphas.forEach((alpha,index)=>app.style.setProperty('--mask-top-'+index,(1-(1-alpha)*topStrength).toFixed(3)));
  bottomAlphas.forEach((alpha,index)=>app.style.setProperty('--mask-bottom-'+(index+1),(1-(1-alpha)*bottomStrength).toFixed(3)));
  app.style.setProperty('--top-fade-strength',String(topStrength));
@@ -1710,7 +1718,7 @@ function makeLayoutBackup(){
  return {
   format:LAYOUT_BACKUP_FORMAT,
   schemaVersion:LAYOUT_BACKUP_SCHEMA,
-  appVersion:32,
+  appVersion:33,
   exportedAt:new Date().toISOString(),
   settings:cloneProfiles(editing?draftOffsets:savedOffsets)
  };
@@ -1908,7 +1916,7 @@ refreshComposerMeasure();
 // v21: atualização discreta no PRIMEIRO item das conversas recentes.
 // Nenhum redirecionamento automático, nem durante o force nem numa conversa aberta.
 // A consulta bypassa cache HTTP e volta a ser feita a cada abertura do menu.
-const GPT_FORCE_VERSION=32;
+const GPT_FORCE_VERSION=33;
 const DEFAULT_RECENT_TITLE='Quando usar por que e porque';
 let latestAvailableVersion=null;
 let updateCheckSequence=0;
