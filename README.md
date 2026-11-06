@@ -1,20 +1,22 @@
-# GPT Force v19 | Degradê superior espelhado
+# GPT Force v20 | Editor organizado e backup de configurações
 
-Baseada diretamente na versão 18 aprovada no iPhone
+## UX
+- Seleção por localização física na tela: Topo, Tela inicial, Mensagens e resposta, Barra inferior
+- Ao escolher a área, o segundo seletor exibe apenas os controles daquela região, em ordem de leitura
+- Ajustes por teclado fechado ou aberto aparecem apenas na seção Barra inferior
+- O painel tem rolagem interna em telas mais curtas, sem tomar a conversa inteira
 
-## Atualização visual
-- Degradê superior com os mesmos seis pontos de opacidade do degradê inferior, mas espelhado
-- Degradê superior ancorado no cabeçalho, sem bloquear os botões e sem interferir na rolagem
-- Controles independentes para altura e posição do degradê superior no editor por pressionamento prolongado do botão +
-- Altura, posição e demais configurações do degradê inferior preservadas
+## Backup
+- **Salvar**: preserva o funcionamento anterior e grava no localStorage
+- **Exportar**: arquivo JSON versionado com posições compartilhadas, perfis aberto/fechado, fontes, espaçamentos, ícones e os dois degradês
+- Em iPhone com API de compartilhamento, Exportar abre o menu de compartilhamento do sistema, permitindo salvar em Arquivos
+- **Importar**: valida o arquivo e exibe prévia sem gravar, é preciso confirmar com Salvar
+- Arquivos inválidos não afetam as configurações em uso
 
-## Cache Busting
-- `version.json` contém o número da versão publicada e deve ser atualizado **por último**
-- Ao abrir ou voltar ao app, uma verificação sem cache procura uma nova versão, sem recarregar durante o uso de uma lista ou a digitação
-- Os parâmetros de versão dos recursos, manifesto, ícones e listas foram incrementados para 19
-- Para atualizar uma instalação ainda na versão 18, pode ser necessário fazer uma atualização manual ou visitar `index.html?v=19` uma vez, pois a v18 ainda não tinha essa verificação
+## Compatibilidade
+- Chaves de armazenamento e estrutura interna dos ajustes mantidas para preservar preferências da v19
+- Force, captura de teclas, corretor nativo, temporizador de 5 segundos e listas não alterados
+- Cache Busting atualizado para v20, com version.json publicado por último
 
-## Preservação
-- Motor de force, corretor nativo, botão de voz, temporizador, lista de categorias e ajustes salvos preservados
-- Testado em Chromium com entrada OP=23 e QQ=100, além de parâmetros independentes do editor
-- Testar visualmente no Safari do iPhone
+## Testes
+- Verificação estática, testes de interface e regressão via Playwright Chromium, não substituem a validação no Safari do iPhone
