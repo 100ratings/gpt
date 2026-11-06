@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ChatGPT">
-<link rel="manifest" href="manifest.webmanifest?v=21">
-<link rel="apple-touch-icon" href="icon-192.png?v=21">
+<link rel="manifest" href="manifest.webmanifest?v=22">
+<link rel="apple-touch-icon" href="icon-192.png?v=22">
 <title>ChatGPT</title>
 <style>
 :root{color-scheme:dark;--bg:#000;--fg:#f5f5f5;--muted:#9b9b9d;--surface:#222224;--surface2:#2d2d30;--outline:#38383b;--header-h:60px;--app-height:100dvh}
@@ -24,7 +24,7 @@ svg{display:block}
    iOS Safari can scroll the visual viewport inside the layout viewport on focus. */
 .app{width:var(--viewport-width,100%);height:var(--app-height);min-height:0;top:var(--viewport-top,0px);left:var(--viewport-left,0px);background:var(--bg);overflow:hidden;position:fixed;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 .app.keyboard-open{padding-bottom:0}
-.app-header{height:var(--header-h);min-height:var(--header-h);padding:8px 17px 6px;display:grid;grid-template-columns:42px 1fr 42px;align-items:center;position:relative;z-index:3;background:#000}
+.app-header{height:var(--header-h);min-height:var(--header-h);padding:8px 17px 6px;display:grid;grid-template-columns:42px 1fr 42px;align-items:center;position:relative;z-index:3;background:transparent}
 .header-icon{width:40px;height:40px;display:grid;place-items:center;border-radius:40px}
 .header-icon svg{width:23px;height:23px}
 .model-title{justify-self:center;display:flex;align-items:center;gap:5px;font-size:18px;font-weight:610;letter-spacing:-.4px;line-height:25px;padding:8px 6px}
@@ -87,7 +87,7 @@ svg{display:block}
 }
 .actions-preview-row .answer-action{cursor:default}
 
-.composer-region{padding:6px 12px 10px;flex:0 0 auto;background:#000;position:relative;z-index:4}
+.composer-region{padding:6px 12px 10px;flex:0 0 auto;background:transparent;position:relative;z-index:4}
 .composer{background:var(--surface);border-radius:26px;display:flex;flex-direction:column;min-height:53px;box-shadow:inset 0 0 0 .6px #333;transition:background .18s}
 .composer-inner{display:flex;align-items:flex-end;gap:4px;padding:7px 8px 7px 9px;min-height:53px}
 .add-button{width:36px;height:36px;flex-shrink:0;border-radius:50%;display:grid;place-items:center;color:#ededee;margin-bottom:1px}
@@ -194,6 +194,44 @@ svg{display:block}
 .app.is-editing [data-edit-key].edit-selected{outline:2px dashed #ffd76e;outline-offset:3px;border-radius:5px}
 @media(max-width:360px){.edit-panel{left:6px;right:6px}.edit-panel .edit-arrow{min-width:36px}}
 
+/* v22: the transcript now also extends BEHIND the transparent header.
+   On initial load, compensate for the removed header's flow height so the first
+   user bubble stays in the same readable position as before. During scrolling,
+   content really travels behind the header and the system status bar. */
+.app.has-messages .app-header{
+ position:absolute;
+ top:env(safe-area-inset-top,0px);
+ left:0;right:0;
+ width:100%;
+}
+.app.has-messages .conversation{
+ margin-top:calc(-1 * env(safe-area-inset-top,0px));
+ -webkit-mask-image:linear-gradient(to bottom,
+  rgba(0,0,0,.10) 0px,
+  rgba(0,0,0,.23) 50px,
+  rgba(0,0,0,.38) 80px,
+  rgba(0,0,0,.65) 120px,
+  rgba(0,0,0,.9) 156px,
+  #000 188px,
+  #000 calc(100% - var(--composer-real-height,88px) - 90px),
+  rgba(0,0,0,.55) calc(100% - var(--composer-real-height,88px) - 5px),
+  rgba(0,0,0,.19) calc(100% - var(--composer-real-height,88px) + 28px),
+  rgba(0,0,0,.12) 100%);
+ mask-image:linear-gradient(to bottom,
+  rgba(0,0,0,.10) 0px,
+  rgba(0,0,0,.23) 50px,
+  rgba(0,0,0,.38) 80px,
+  rgba(0,0,0,.65) 120px,
+  rgba(0,0,0,.9) 156px,
+  #000 188px,
+  #000 calc(100% - var(--composer-real-height,88px) - 90px),
+  rgba(0,0,0,.55) calc(100% - var(--composer-real-height,88px) - 5px),
+  rgba(0,0,0,.19) calc(100% - var(--composer-real-height,88px) + 28px),
+  rgba(0,0,0,.12) 100%);
+}
+.app.has-messages .messages{
+ padding-top:calc(11px + env(safe-area-inset-top,0px) + var(--header-h));
+}
 /* v6: messages scroll behind the composer, with a continuous fade just like
    a mobile chat transcript; the composer positioning still respects VisualViewport. */
 .app.has-messages .composer-region{
@@ -245,8 +283,8 @@ svg{display:block}
   #000 100%);
 }
 .app.has-messages .app-header::after{display:block}
-/* The effect ends behind the solid composer background, never at an abrupt
-   clipping boundary in the conversation or the visual viewport. */
+/* The existing fades remain untouched, but the header and composer region
+   no longer paint solid black sheets over the scrollable conversation. */
 .composer-region > .composer,.composer-region > .footer-caption{position:relative;z-index:1}
 .jump-to-bottom{
  display:none;position:absolute;z-index:5;left:50%;
@@ -296,7 +334,7 @@ svg{display:block}
   </header>
   <main class="conversation" id="conversation" aria-label="Conversa">
     <section class="welcome" id="welcome">
-      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=21" alt="" aria-hidden="true">
+      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=22" alt="" aria-hidden="true">
       <h1 class="welcome-title" data-edit-key="welcome-title">Como posso ajudar?</h1>
     </section>
     <section class="messages" id="messages" aria-live="off"></section>
@@ -658,7 +696,7 @@ function parseRequest(question){
 }
 async function fetchListFile(category){
  if(!category||!/^[a-z0-9]+$/.test(category))throw Error('categoria invalida');
- const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=21&ts='+Date.now(),{cache:'no-store'});
+ const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=22&ts='+Date.now(),{cache:'no-store'});
  if(!response.ok)throw Error('lista nao disponivel');
  const raw=await response.text();
  return raw.replace(/^\uFEFF/,'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -1432,7 +1470,7 @@ refreshComposerMeasure();
 // v21: atualização discreta no PRIMEIRO item das conversas recentes.
 // Nenhum redirecionamento automático, nem durante o force nem numa conversa aberta.
 // A consulta bypassa cache HTTP e volta a ser feita a cada abertura do menu.
-const GPT_FORCE_VERSION=21;
+const GPT_FORCE_VERSION=22;
 const DEFAULT_RECENT_TITLE='Quando usar por que e porque';
 let latestAvailableVersion=null;
 let updateCheckSequence=0;
