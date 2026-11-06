@@ -1,42 +1,35 @@
-# GPT Force v35 | Ajustes com limites ampliados e valores exatos
+# GPT Force v36 | Sinal do ponto sem deslocamento e fade cronometrado
 
-## Limites de ajustes
-- Deslocamento vertical dos elementos e posição horizontal dos cinco botões: **−200 a +200 px**
-- Espaçamento dos itens e entre botões: **−200 a +200 px**
-- Posição dos degradês superior e inferior: **−200 a +200 px**
-- Altura dos degradês: **0 a 500 px**, porque altura negativa não é válida em CSS
-- Tamanho do texto da conversa: **8 a 60 px**
-- Tamanho de cada ícone dos botões da resposta: **8 a 80 px**
-- Tamanho do peek: **8 a 60 px**
-- Posição X/Y do peek: seus limites anteriores, superiores a ±200 px, permanecem preservados
-- Opacidades: **0 a 100%**
-- Janela do editor: limites anteriores de altura/largura compatíveis com a tela do iPhone
+## Por que o sinal anterior falhava
+- A v35 alternava entre o marcador nativo do `<ol>` e um pseudo-elemento CSS apenas no item forçado
+- No Safari, esses dois marcadores podem ter geometrias diferentes, deslocando o número para a direita quando o ponto desaparece
 
-## Entrada numérica direta
-- Ao selecionar um ajuste comum, o editor mostra um campo **Valor exato**, com mínimo e máximo correspondentes à propriedade
-- O campo permite digitar valores positivos, zero ou negativos quando aplicáveis, como `-20` na posição do degradê inferior
-- Os botões ↑ e ↓ continuam movendo em passos de 1 px ou 1 ponto percentual
-- Para os cinco botões da resposta, existe agora um campo X separado para o deslocamento horizontal, mantendo a entrada de Y
-- O peek conserva seus campos próprios X, Y, tamanho e opacidade
-- A altura e a largura da janela do editor agora também podem ser digitadas, além dos controles deslizantes
-- Valores fora dos limites são rejeitados sem substituir o valor salvo
+## Solução
+- **Todos os números da lista** agora utilizam um mesmo marcador visual estável, com o número e o ponto em dois elementos distintos
+- Ao ativar o efeito na região do microfone/voz, somente a visibilidade do ponto do item forçado muda, sem alterar a largura, posição ou alinhamento do número
+- O ponto fica invisível do instante inicial até completar 5 segundos
+- **Exatamente após 5 segundos**, o ponto reaparece, enquanto o emoji ainda está visível
+- Durante **o sexto segundo completo**, o emoji perde opacidade gradualmente de 100% a 0%, por uma animação Web Animations de 1000 ms com fallback CSS
+- Quando o temporizador chega a 6 segundos, o emoji permanece invisível, mas conserva a largura original no texto
+- Nova conversa cancela os temporizadores e a animação
+- Os demais itens mantêm seus pontos e alinhamento durante toda a apresentação
+- Numeração de 1 a 100 conferida, inclusive o item 100 em viewport estreito
 
-## Segurança e compatibilidade
-- A chave do localStorage permanece `gpt-force-layout-v4`, portanto configurações existentes são preservadas
-- A exportação/importação JSON continua com o mesmo formato, aceitando backups anteriores e novos valores válidos
-- Nenhum valor salvo é alterado apenas por atualizar o aplicativo
-- CSS do cabeçalho e do degradê superior comparados literalmente com a v34, sem alterações
-- O comportamento de rotação restaurado na v29 e as melhorias posteriores continuam preservados
-- Código secreto, corretor nativo, `OP = 23`, temporizador do peek, sinal do ponto e efeito de desaparecimento do emoji preservados
+## Não alterado
+- O topo e o degradê superior, comparados literalmente com a v35
+- O degradê inferior e todos os ajustes salvos
+- Código secreto `OP = 23`, corretor nativo iOS, os dois modos de entrada, peek de 3 segundos
+- Editor, controles numéricos da v35, histórico, backups e comportamento original de orientação
+- Todos os arquivos de listas e a ordem das respostas
 
-## Testes realizados
-- Sintaxe JavaScript validada pelo Node.js
-- Chromium móvel: limites de altura/posição do degradê, fonte, espaçamento, tamanho dos botões, deslocamento horizontal, opacidade e entrada numérica
-- Salvamento em localStorage, ajustes do tamanho da janela e rejeição de valores fora do intervalo
-- Uma solicitação normal de lista continuou funcionando
-- Sem erros de JavaScript nos testes automatizados
-- O comportamento físico dos controles numéricos no Safari/PWA do iPhone ainda exige validação pelo usuário
+## Testes
+- Playwright Chromium em tela móvel, com `OP = 23` e 50 animais: o ponto do item 23 some imediatamente e **número, texto e marcador mantêm exatamente as mesmas coordenadas**
+- Ponto reaparece após 5 segundos
+- Opacidade medida durante o sexto segundo: valor intermediário aproximado de 30% no meio do fade, valor 0 ao fim
+- Verificados os 50 números; marcadores de três dígitos com até 100 itens não ultrapassam a borda em larguras de 320, 390 e 428 pixels
+- Sem erros JavaScript no Chromium
+- **É necessário confirmar o comportamento final no Safari/PWA do iPhone**, cujo renderizador não está disponível neste ambiente
 
 ## Publicação
-- HTML e manifesto com parâmetros de cache v35
-- Atualização manual do menu habilitada após publicar os outros arquivos por meio de `version.json`
+- Código e cache busting v36
+- Atualização manual pelo menu liberada após a atualização do `version.json`
