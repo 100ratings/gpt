@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ChatGPT">
-<link rel="manifest" href="manifest.webmanifest?v=18">
-<link rel="apple-touch-icon" href="icon-192.png?v=18">
+<link rel="manifest" href="manifest.webmanifest?v=19">
+<link rel="apple-touch-icon" href="icon-192.png?v=19">
 <title>ChatGPT</title>
 <style>
 :root{color-scheme:dark;--bg:#000;--fg:#f5f5f5;--muted:#9b9b9d;--surface:#222224;--surface2:#2d2d30;--outline:#38383b;--header-h:60px;--app-height:100dvh}
@@ -205,6 +205,27 @@ svg{display:block}
   #000 100%);
 }
 .app.has-messages .scroll-fade{display:block}
+/* v19: fade superior espelhado, com a MESMA curva visual do inferior.
+   Fica preso ao cabeçalho e não intercepta gestos nem os botões do topo. */
+.app-header > button{position:relative;z-index:1}
+.app-header::after{
+ content:"";
+ display:none;
+ position:absolute;
+ z-index:0;
+ left:0;right:0;
+ top:calc(100% - var(--top-fade-position,12px));
+ height:var(--top-fade-height,140px);
+ pointer-events:none;
+ background:linear-gradient(to top,
+  rgba(0,0,0,0) 0%,
+  rgba(0,0,0,.05) 20%,
+  rgba(0,0,0,.26) 49%,
+  rgba(0,0,0,.62) 75%,
+  rgba(0,0,0,.88) 90%,
+  #000 100%);
+}
+.app.has-messages .app-header::after{display:block}
 /* The effect ends behind the solid composer background, never at an abrupt
    clipping boundary in the conversation or the visual viewport. */
 .composer-region > .composer,.composer-region > .footer-caption{position:relative;z-index:1}
@@ -256,7 +277,7 @@ svg{display:block}
   </header>
   <main class="conversation" id="conversation" aria-label="Conversa">
     <section class="welcome" id="welcome">
-      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=18" alt="" aria-hidden="true">
+      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=19" alt="" aria-hidden="true">
       <h1 class="welcome-title" data-edit-key="welcome-title">Como posso ajudar?</h1>
     </section>
     <section class="messages" id="messages" aria-live="off"></section>
@@ -307,8 +328,10 @@ svg{display:block}
       <select id="editTarget" aria-label="Elemento para ajustar">
         <option value="conversation-text-size">Tamanho: pergunta + lista + emojis</option>
         <option value="list-item-spacing">Espaçamento entre itens da lista</option>
-        <option value="fade-height">Degradê: altura</option>
-        <option value="fade-position">Degradê: posição vertical</option>
+        <option value="fade-height">Degradê inferior: altura</option>
+        <option value="fade-position">Degradê inferior: posição vertical</option>
+        <option value="top-fade-height">Degradê superior: altura</option>
+        <option value="top-fade-position">Degradê superior: posição vertical</option>
         <option value="response-actions">Botões: mover conjunto ↑ ↓ ← →</option>
         <option value="response-action-gap">Botões: espaçamento entre eles</option>
         <option value="response-action-size-0">Botão 1: tamanho do Copiar</option>
@@ -612,7 +635,7 @@ function parseRequest(question){
 }
 async function fetchListFile(category){
  if(!category||!/^[a-z0-9]+$/.test(category))throw Error('categoria invalida');
- const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=18&ts='+Date.now(),{cache:'no-store'});
+ const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=19&ts='+Date.now(),{cache:'no-store'});
  if(!response.ok)throw Error('lista nao disponivel');
  const raw=await response.text();
  return raw.replace(/^\uFEFF/,'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -722,6 +745,8 @@ function resetNewChat(){
  cancelGeneration();clearConfirmation();digits=[];visibleText='';selectedAnswerList=[];currentPosition=1;currentForce='';forceEmojiSpan=null;cancelReveal();
  prompt.value='';messages.replaceChildren();app.classList.remove('has-messages');
  scroller.scrollTop=0;updateComposer();closeOverlays();updateJumpButton();
+ // Após encerrar uma conversa, podemos checar atualizações sem interromper o force.
+ checkForUpdatedVersion();
 }
 async function sendRequest(){
  if(generating||digits.length!==2||!prompt.value.trim())return;
@@ -868,11 +893,20 @@ function cleanSpacingPx(value){
 // Separate fine adjustments to fade length and position, in 1-pixel steps.
 const DEFAULT_FADE_HEIGHT=140, MIN_FADE_HEIGHT=30, MAX_FADE_HEIGHT=320;
 const DEFAULT_FADE_POSITION=12, MIN_FADE_POSITION=-100, MAX_FADE_POSITION=100;
+// Ajustes superiores são independentes, os valores inferiores existentes não mudam.
+const DEFAULT_TOP_FADE_HEIGHT=140, MIN_TOP_FADE_HEIGHT=30, MAX_TOP_FADE_HEIGHT=320;
+const DEFAULT_TOP_FADE_POSITION=12, MIN_TOP_FADE_POSITION=-100, MAX_TOP_FADE_POSITION=100;
 function cleanFadeHeight(value){
  return Number.isInteger(value)&&value>=MIN_FADE_HEIGHT&&value<=MAX_FADE_HEIGHT?value:DEFAULT_FADE_HEIGHT;
 }
 function cleanFadePosition(value){
  return Number.isInteger(value)&&value>=MIN_FADE_POSITION&&value<=MAX_FADE_POSITION?value:DEFAULT_FADE_POSITION;
+}
+function cleanTopFadeHeight(value){
+ return Number.isInteger(value)&&value>=MIN_TOP_FADE_HEIGHT&&value<=MAX_TOP_FADE_HEIGHT?value:DEFAULT_TOP_FADE_HEIGHT;
+}
+function cleanTopFadePosition(value){
+ return Number.isInteger(value)&&value>=MIN_TOP_FADE_POSITION&&value<=MAX_TOP_FADE_POSITION?value:DEFAULT_TOP_FADE_POSITION;
 }
 const DEFAULT_CONVERSATION_FONT=16;
 const MIN_CONVERSATION_FONT=12;
@@ -893,10 +927,12 @@ function cleanProfiles(raw){
   actionGapPx:cleanActionGap(raw?.actionGapPx),
   actionSizes:cleanActionSizes(raw?.actionSizes),
   fadeHeight:cleanFadeHeight(raw?.fadeHeight),
-  fadePosition:cleanFadePosition(raw?.fadePosition)
+  fadePosition:cleanFadePosition(raw?.fadePosition),
+  topFadeHeight:cleanTopFadeHeight(raw?.topFadeHeight),
+  topFadePosition:cleanTopFadePosition(raw?.topFadePosition)
  };
 }
-function cloneProfiles(value){return {shared:{...value.shared},closed:{...value.closed},open:{...value.open},fontPx:value.fontPx,listGapPx:value.listGapPx,actionsX:value.actionsX,actionGapPx:value.actionGapPx,actionSizes:[...value.actionSizes],fadeHeight:value.fadeHeight,fadePosition:value.fadePosition};}
+function cloneProfiles(value){return {shared:{...value.shared},closed:{...value.closed},open:{...value.open},fontPx:value.fontPx,listGapPx:value.listGapPx,actionsX:value.actionsX,actionGapPx:value.actionGapPx,actionSizes:[...value.actionSizes],fadeHeight:value.fadeHeight,fadePosition:value.fadePosition,topFadeHeight:value.topFadeHeight,topFadePosition:value.topFadePosition};}
 let savedOffsets=cleanProfiles({});
 try{
  const existing=localStorage.getItem(STORAGE_KEY);
@@ -919,6 +955,8 @@ const TEXT_SIZE_KEY='conversation-text-size';
 const LIST_SPACING_KEY='list-item-spacing';
 const FADE_HEIGHT_KEY='fade-height';
 const FADE_POSITION_KEY='fade-position';
+const TOP_FADE_HEIGHT_KEY='top-fade-height';
+const TOP_FADE_POSITION_KEY='top-fade-position';
 const ACTION_GAP_KEY='response-action-gap';
 const ACTION_SIZE_PREFIX='response-action-size-';
 function actionSizeIndex(key){
@@ -950,6 +988,8 @@ function redrawOffsets(){
  app.style.setProperty('--list-item-spacing',offsets.listGapPx+'px');
  app.style.setProperty('--fade-height',offsets.fadeHeight+'px');
  app.style.setProperty('--fade-position',offsets.fadePosition+'px');
+ app.style.setProperty('--top-fade-height',offsets.topFadeHeight+'px');
+ app.style.setProperty('--top-fade-position',offsets.topFadePosition+'px');
  const displayedMode=editing?selectedMode:(keyboardIsOpen?'open':'closed');
  for(const node of editableNodes){
   const key=node.dataset.editKey;
@@ -984,6 +1024,14 @@ function redrawOffsets(){
   editPixels.textContent=draftOffsets.fadePosition+' px · posição do degradê';
   editUpButton.setAttribute('aria-label','Subir degradê um pixel');
   editDownButton.setAttribute('aria-label','Descer degradê um pixel');
+ }else if(selectedElement===TOP_FADE_HEIGHT_KEY){
+  editPixels.textContent=draftOffsets.topFadeHeight+' px · altura do degradê superior';
+  editUpButton.setAttribute('aria-label','Aumentar altura do degradê superior');
+  editDownButton.setAttribute('aria-label','Diminuir altura do degradê superior');
+ }else if(selectedElement===TOP_FADE_POSITION_KEY){
+  editPixels.textContent=draftOffsets.topFadePosition+' px · posição do degradê superior';
+  editUpButton.setAttribute('aria-label','Subir degradê superior um pixel');
+  editDownButton.setAttribute('aria-label','Descer degradê superior um pixel');
  }else if(selectedElement===ACTION_GAP_KEY){
   editPixels.textContent=draftOffsets.actionGapPx+' px · espaço entre cada botão';
   editUpButton.setAttribute('aria-label','Aumentar espaço entre botões em um pixel');
@@ -1011,6 +1059,10 @@ function redrawOffsets(){
      ? '↑ amplia e ↓ reduz em 1 px a transição suave entre a lista e a caixa de mensagem. Veja diretamente na lista gerada.'
    :selectedElement===FADE_POSITION_KEY
      ? '↑ sobe e ↓ desce em 1 px o degradê, sem mover a caixa de mensagem. Veja diretamente na lista gerada.'
+   :selectedElement===TOP_FADE_HEIGHT_KEY
+     ? '↑ amplia e ↓ reduz em 1 px o degradê do topo, sem alterar o degradê inferior.'
+   :selectedElement===TOP_FADE_POSITION_KEY
+     ? '↑ sobe e ↓ desce em 1 px o degradê do topo, acompanhando o cabeçalho.'
    :selectedElement===RESPONSE_ACTIONS_KEY
      ? '↑ ↓ ← → deslocam os cinco botões reais em passos de 1 px. Gere uma resposta antes de ajustar.'
    :selectedElement===ACTION_GAP_KEY
@@ -1023,7 +1075,7 @@ function redrawOffsets(){
  }
 }
 function chooseEditElement(key){
- if(key!==TEXT_SIZE_KEY&&key!==LIST_SPACING_KEY&&key!==FADE_HEIGHT_KEY&&key!==FADE_POSITION_KEY&&!isActionSetting(key)&&!editableKeys.has(key))return;
+ if(key!==TEXT_SIZE_KEY&&key!==LIST_SPACING_KEY&&key!==FADE_HEIGHT_KEY&&key!==FADE_POSITION_KEY&&key!==TOP_FADE_HEIGHT_KEY&&key!==TOP_FADE_POSITION_KEY&&!isActionSetting(key)&&!editableKeys.has(key))return;
  selectedElement=key;editTarget.value=key;
  for(const node of editableNodes)node.classList.toggle('edit-selected',key!==TEXT_SIZE_KEY&&key!==LIST_SPACING_KEY&&node.dataset.editKey===key);
  redrawOffsets();
@@ -1078,6 +1130,10 @@ editUpButton.addEventListener('click',()=>{
   draftOffsets.fadeHeight=Math.min(MAX_FADE_HEIGHT,draftOffsets.fadeHeight+1);
  }else if(selectedElement===FADE_POSITION_KEY){
   draftOffsets.fadePosition=Math.max(MIN_FADE_POSITION,draftOffsets.fadePosition-1);
+ }else if(selectedElement===TOP_FADE_HEIGHT_KEY){
+  draftOffsets.topFadeHeight=Math.min(MAX_TOP_FADE_HEIGHT,draftOffsets.topFadeHeight+1);
+ }else if(selectedElement===TOP_FADE_POSITION_KEY){
+  draftOffsets.topFadePosition=Math.min(MAX_TOP_FADE_POSITION,draftOffsets.topFadePosition+1);
  }else if(selectedElement===ACTION_GAP_KEY){
   draftOffsets.actionGapPx=Math.min(MAX_ACTION_GAP,draftOffsets.actionGapPx+1);
  }else if(actionSizeIndex(selectedElement)>=0){
@@ -1098,6 +1154,10 @@ editDownButton.addEventListener('click',()=>{
   draftOffsets.fadeHeight=Math.max(MIN_FADE_HEIGHT,draftOffsets.fadeHeight-1);
  }else if(selectedElement===FADE_POSITION_KEY){
   draftOffsets.fadePosition=Math.min(MAX_FADE_POSITION,draftOffsets.fadePosition+1);
+ }else if(selectedElement===TOP_FADE_HEIGHT_KEY){
+  draftOffsets.topFadeHeight=Math.max(MIN_TOP_FADE_HEIGHT,draftOffsets.topFadeHeight-1);
+ }else if(selectedElement===TOP_FADE_POSITION_KEY){
+  draftOffsets.topFadePosition=Math.max(MIN_TOP_FADE_POSITION,draftOffsets.topFadePosition-1);
  }else if(selectedElement===ACTION_GAP_KEY){
   draftOffsets.actionGapPx=Math.max(MIN_ACTION_GAP,draftOffsets.actionGapPx-1);
  }else if(actionSizeIndex(selectedElement)>=0){
@@ -1189,6 +1249,33 @@ if('ResizeObserver' in window){
  new ResizeObserver(()=>refreshComposerMeasure()).observe(composerRegion);
 }
 refreshComposerMeasure();
+// v19: cache busting real da página HTML, além dos assets/listas.
+// Consultar um JSON pequeno com cache desativado permite abrir uma versão nova
+// mesmo que o PWA tenha sido iniciado por um antigo index.html?v=NN.
+// Nunca recarregar automaticamente durante a digitação ou apresentação.
+const GPT_FORCE_VERSION=19;
+let lastVersionCheckAt=0;
+async function checkForUpdatedVersion(){
+ if(location.protocol==='file:' || document.visibilityState==='hidden' || generating || editing || digits.length || app.classList.contains('has-messages') || document.activeElement===prompt)return;
+ const now=Date.now();
+ if(now-lastVersionCheckAt<15000)return;
+ lastVersionCheckAt=now;
+ try{
+  const response=await fetch('version.json?ts='+now,{cache:'no-store'});
+  if(!response.ok)return;
+  const data=await response.json();
+  const latest=Number(data.version);
+  if(!Number.isSafeInteger(latest) || latest<=GPT_FORCE_VERSION)return;
+  if(generating || editing || digits.length || app.classList.contains('has-messages') || document.activeElement===prompt)return;
+  const url=new URL('./index.html',location.href);
+  url.searchParams.set('v',String(latest));
+  window.location.replace(url.href);
+ }catch(error){/* Falha de conexão não impede o uso offline/cached */}
+}
+window.addEventListener('pageshow',()=>checkForUpdatedVersion());
+document.addEventListener('visibilitychange',()=>{
+ if(document.visibilityState==='visible')checkForUpdatedVersion();
+});
 })();
 </script>
 </body>
