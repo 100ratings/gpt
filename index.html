@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ChatGPT">
-<link rel="manifest" href="manifest.webmanifest?v=29">
-<link rel="apple-touch-icon" href="icon-192.png?v=29">
+<link rel="manifest" href="manifest.webmanifest?v=30">
+<link rel="apple-touch-icon" href="icon-192.png?v=30">
 <title>ChatGPT</title>
 <style>
 :root{color-scheme:dark;--bg:#000;--fg:#f5f5f5;--muted:#9b9b9d;--surface:#222224;--surface2:#2d2d30;--outline:#38383b;--header-h:60px;--app-height:100dvh}
@@ -163,7 +163,7 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
 .force-emoji.hidden{visibility:hidden}
 .add-button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 .edit-panel[hidden]{display:none!important}
-.edit-panel{position:absolute;top:calc(env(safe-area-inset-top,0px) + 64px);left:10px;right:10px;z-index:30;max-width:450px;margin:auto;background:#29292c;border:1px solid #48484b;border-radius:17px;box-shadow:0 12px 42px #000b;padding:13px;display:flex;flex-direction:column;gap:10px;max-height:calc(var(--app-height,100dvh) - env(safe-area-inset-top,0px) - 80px);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.edit-panel{position:absolute;top:calc(env(safe-area-inset-top,0px) + 64px);left:0;right:0;z-index:30;width:min(var(--edit-panel-width,450px),calc(100% - 20px));height:min(var(--edit-panel-height,540px),calc(var(--app-height,100dvh) - env(safe-area-inset-top,0px) - 80px));max-width:450px;margin:0 auto;background:#29292c;border:1px solid #48484b;border-radius:17px;box-shadow:0 12px 42px #000b;padding:13px;display:flex;flex-direction:column;gap:10px;max-height:calc(var(--app-height,100dvh) - env(safe-area-inset-top,0px) - 80px);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 .edit-panel-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .edit-panel-top strong{font-size:15px;font-weight:650}
 .edit-panel .edit-save{background:#f1f1f2;color:#101012;border-radius:12px;padding:9px 16px;font-size:14px;font-weight:650;min-height:40px}
@@ -213,22 +213,21 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
 .app.is-editing [data-edit-key].edit-selected{outline:2px dashed #ffd76e;outline-offset:3px;border-radius:5px}
 @media(max-width:360px){.edit-panel{left:6px;right:6px}.edit-panel .edit-arrow{min-width:36px}}
 
-/* v28 editor: never obscure the title while adjusting the top. */
+/* v30: the editor panel has independently adjustable width and height.
+   When editing the header, keep it docked below, leaving the top visible.
+   Its internal contents scroll freely even at the minimum panel height. */
 .edit-panel-top-actions{display:flex;align-items:center;gap:6px}
-.edit-panel .edit-minimize{background:#414145;border:1px solid #66666a;border-radius:10px;min-height:40px;padding:8px;font-size:12px;font-weight:600}
-.edit-panel.is-compact{padding:8px 10px;gap:7px;max-height:min(205px,calc(var(--app-height,100dvh) - 12px));}
-.edit-panel.is-compact #editAreaRow,
-.edit-panel.is-compact #editModeControls,
-.edit-panel.is-compact .edit-mode-hint,
-.edit-panel.is-compact .edit-panel-bottom,
-.edit-panel.is-compact .edit-backup{display:none!important}
-.edit-panel.is-compact .edit-section-row label[for="editTarget"]{display:none}
-.edit-panel.dock-bottom{top:auto;bottom:8px}
-.edit-panel.dock-bottom .edit-panel-top{touch-action:manipulation}
-@media(max-height:480px){
- .edit-panel.is-compact{max-height:calc(var(--app-height,100dvh) - 16px)}
- .edit-panel.dock-bottom{bottom:4px}
+.edit-panel.dock-bottom{
+ top:auto;bottom:8px;
+ height:min(var(--edit-panel-height,540px),calc(var(--app-height,100dvh) - env(safe-area-inset-top,0px) - 126px));
+ max-height:calc(var(--app-height,100dvh) - env(safe-area-inset-top,0px) - 126px);
 }
+.edit-window-size{display:flex;flex-direction:column;gap:7px;padding:10px 9px;background:#222225;border:1px solid #424247;border-radius:11px}
+.edit-window-size strong{font-size:12px;color:#eeeeef;font-weight:600}
+.edit-window-control{display:grid;grid-template-columns:48px minmax(0,1fr) 48px;align-items:center;gap:8px;font-size:12px;color:#cbcbce}
+.edit-window-control input{width:100%;min-width:0;accent-color:#eaeaea;cursor:pointer;touch-action:pan-x}
+.edit-window-control output{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:11px}
+@media(max-height:480px){.edit-panel.dock-bottom{bottom:4px}}
 
 /* v24: the full scroll surface reaches the bottom of the screen, including
    the iPhone safe area behind the footer, with no solid black bar at the edge.
@@ -392,7 +391,7 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
   </header>
   <main class="conversation" id="conversation" aria-label="Conversa">
     <section class="welcome" id="welcome">
-      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=29" alt="" aria-hidden="true">
+      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=30" alt="" aria-hidden="true">
       <h1 class="welcome-title" data-edit-key="welcome-title">Como posso ajudar?</h1>
     </section>
     <section class="messages" id="messages" aria-live="off"></section>
@@ -440,7 +439,12 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
   <div class="popover" id="modelPopover"><button type="button" id="modelClose">ChatGPT <span>✓</span></button></div>
 
   <div class="edit-panel" id="editPanel" hidden>
-    <div class="edit-panel-top"><strong>Ajustar interface</strong><div class="edit-panel-top-actions"><button class="edit-minimize" type="button" id="editMinimize" aria-label="Compactar painel de ajustes">Compactar</button><button class="edit-save" type="button" id="editSave">Salvar</button></div></div>
+    <div class="edit-panel-top"><strong>Ajustar interface</strong><div class="edit-panel-top-actions"><button class="edit-save" type="button" id="editSave">Salvar</button></div></div>
+    <div class="edit-window-size" aria-label="Tamanho da janela de ajustes">
+      <strong>Tamanho da janela</strong>
+      <label class="edit-window-control" for="editWindowHeight"><span>Altura</span><input id="editWindowHeight" type="range" min="210" max="740" step="10" value="540" aria-label="Altura da janela de ajustes"><output id="editWindowHeightValue" for="editWindowHeight">540 px</output></label>
+      <label class="edit-window-control" for="editWindowWidth"><span>Largura</span><input id="editWindowWidth" type="range" min="260" max="450" step="10" value="450" aria-label="Largura da janela de ajustes"><output id="editWindowWidthValue" for="editWindowWidth">450 px</output></label>
+    </div>
     <div class="edit-section-row" id="editAreaRow">
       <label for="editSection">Área da tela</label>
       <select id="editSection" aria-label="Área da tela para ajustar">
@@ -820,7 +824,7 @@ function parseRequest(question){
 }
 async function fetchListFile(category){
  if(!category||!/^[a-z0-9]+$/.test(category))throw Error('categoria invalida');
- const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=29&ts='+Date.now(),{cache:'no-store'});
+ const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=30&ts='+Date.now(),{cache:'no-store'});
  if(!response.ok)throw Error('lista nao disponivel');
  const raw=await response.text();
  return raw.replace(/^\uFEFF/,'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -1059,20 +1063,41 @@ micVoiceHitZone.addEventListener('click',(event)=>{
 // profiles, while the rest of the interface keeps one shared alignment.
 const STORAGE_KEY='gpt-force-layout-v4';
 const LEGACY_STORAGE_KEY='gpt-force-layout-v2';
+const EDIT_PANEL_DEFAULT_HEIGHT=540,EDIT_PANEL_DEFAULT_WIDTH=450;
+function cleanEditorPanel(input){
+ const height=input?.height,width=input?.width;
+ return {
+  height:Number.isInteger(height)&&height>=210&&height<=740?height:EDIT_PANEL_DEFAULT_HEIGHT,
+  width:Number.isInteger(width)&&width>=260&&width<=450?width:EDIT_PANEL_DEFAULT_WIDTH
+ };
+}
 const editPanel=document.getElementById('editPanel');
-const editMinimize=document.getElementById('editMinimize');
-let editCompact=false;
-let editorDockOverride=null;
+const editWindowHeight=document.getElementById('editWindowHeight');
+const editWindowWidth=document.getElementById('editWindowWidth');
+const editWindowHeightValue=document.getElementById('editWindowHeightValue');
+const editWindowWidthValue=document.getElementById('editWindowWidthValue');
+function redrawEditorWindowSize(){
+ const dims=(editing?draftOffsets:savedOffsets).editorPanel;
+ editPanel.style.setProperty('--edit-panel-height',dims.height+'px');
+ editPanel.style.setProperty('--edit-panel-width',dims.width+'px');
+ editWindowHeight.value=dims.height;
+ editWindowWidth.value=dims.width;
+ editWindowHeightValue.textContent=dims.height+' px';
+ editWindowWidthValue.textContent=dims.width+' px';
+}
 function updateEditorDock(){
  if(!editing)return;
- // Header editor defaults to the slim panel AT THE BOTTOM of the visible
- // viewport so the actual title/status bar remain entirely unobscured.
- const isHeader=editSection.value==='header';
- const dock=editorDockOverride===null?isHeader:editorDockOverride;
- editPanel.classList.toggle('dock-bottom',dock);
- editPanel.classList.toggle('is-compact',editCompact);
- editMinimize.textContent=editCompact?'Expandir':'Compactar';
- editMinimize.setAttribute('aria-label',editCompact?'Expandir painel de ajustes':'Compactar painel de ajustes');
+ // Dock at the visible bottom while adjusting the header only.
+ // This affects the editor window, NEVER the actual app header.
+ editPanel.classList.toggle('dock-bottom',editSection.value==='header');
+ redrawEditorWindowSize();
+}
+for(const [control,key] of [[editWindowHeight,'height'],[editWindowWidth,'width']]){
+ control.addEventListener('input',()=>{
+  if(!editing)return;
+  draftOffsets.editorPanel[key]=Number(control.value);
+  redrawEditorWindowSize();
+ });
 }
 
 const editMode=document.getElementById('editMode');
@@ -1220,10 +1245,11 @@ function cleanProfiles(raw){
   topFadePosition:cleanTopFadePosition(raw?.topFadePosition),
   fadeOpacity:cleanOpacity(raw?.fadeOpacity,DEFAULT_FADE_OPACITY),
   topFadeOpacity:cleanOpacity(raw?.topFadeOpacity,DEFAULT_TOP_FADE_OPACITY),
-  peek:cleanPeek(raw?.peek)
+  peek:cleanPeek(raw?.peek),
+  editorPanel:cleanEditorPanel(raw?.editorPanel)
  };
 }
-function cloneProfiles(value){return {shared:{...value.shared},closed:{...value.closed},open:{...value.open},fontPx:value.fontPx,listGapPx:value.listGapPx,actionsX:value.actionsX,actionGapPx:value.actionGapPx,actionSizes:[...value.actionSizes],fadeHeight:value.fadeHeight,fadePosition:value.fadePosition,topFadeHeight:value.topFadeHeight,topFadePosition:value.topFadePosition,fadeOpacity:value.fadeOpacity,topFadeOpacity:value.topFadeOpacity,peek:{closed:{...value.peek.closed},open:{...value.peek.open},size:value.peek.size,opacity:value.peek.opacity}};}
+function cloneProfiles(value){return {shared:{...value.shared},closed:{...value.closed},open:{...value.open},fontPx:value.fontPx,listGapPx:value.listGapPx,actionsX:value.actionsX,actionGapPx:value.actionGapPx,actionSizes:[...value.actionSizes],fadeHeight:value.fadeHeight,fadePosition:value.fadePosition,topFadeHeight:value.topFadeHeight,topFadePosition:value.topFadePosition,fadeOpacity:value.fadeOpacity,topFadeOpacity:value.topFadeOpacity,peek:{closed:{...value.peek.closed},open:{...value.peek.open},size:value.peek.size,opacity:value.peek.opacity},editorPanel:{...value.editorPanel}};}
 let savedOffsets=cleanProfiles({});
 try{
  const existing=localStorage.getItem(STORAGE_KEY);
@@ -1287,6 +1313,7 @@ function applyActionsPresentation(node,offsets){
  }
 }
 function redrawOffsets(){
+ redrawEditorWindowSize();
  const offsets=editing?draftOffsets:savedOffsets;
  // Both the prompt bubble and the answer inherit precisely the same size.
  app.style.setProperty('--conversation-font-size',offsets.fontPx+'px');
@@ -1453,7 +1480,7 @@ function chooseEditElement(key){
  if(key!==TEXT_SIZE_KEY&&key!==LIST_SPACING_KEY&&key!==FADE_HEIGHT_KEY&&key!==FADE_POSITION_KEY&&key!==TOP_FADE_HEIGHT_KEY&&key!==TOP_FADE_POSITION_KEY&&key!==FADE_OPACITY_KEY&&key!==TOP_FADE_OPACITY_KEY&&!isActionSetting(key)&&!isPeekSetting(key)&&!editableKeys.has(key))return;
  const section=EDIT_SECTION_BY_KEY.get(key);
  if(!section)return;
- if(editSection.value!==section){editSection.value=section;editorDockOverride=null;editCompact=section==='header';populateEditTargets(section);}
+ if(editSection.value!==section){editSection.value=section;populateEditTargets(section);}
  selectedElement=key;editTarget.value=key;
  updateEditorDock();
  for(const node of editableNodes)node.classList.toggle('edit-selected',key!==TEXT_SIZE_KEY&&key!==LIST_SPACING_KEY&&node.dataset.editKey===key);
@@ -1474,7 +1501,6 @@ function beginEdit(){
  editBackupStatus.classList.remove('highlight');
  editBackupStatus.textContent='Exportar cria um backup, importar permite conferir antes de salvar';
  editing=true;cancelReveal();clearConfirmation();didLongPress=true;draftOffsets=cloneProfiles(savedOffsets);
- editCompact=false;editorDockOverride=null;
  selectedMode=keyboardIsOpen?'open':'closed';
  app.classList.add('is-editing');editPanel.hidden=false;
  chooseEditMode(selectedMode);chooseEditElement('composer-region');
@@ -1489,7 +1515,7 @@ function stopEdit(save){
   catch(error){showToast('Não foi possível salvar neste navegador');}
  }else draftOffsets=cloneProfiles(savedOffsets);
  editing=false;app.classList.remove('is-editing');editPanel.hidden=true;
- editPanel.classList.remove('dock-bottom','is-compact');
+ editPanel.classList.remove('dock-bottom');
  for(const node of editableNodes)node.classList.remove('edit-selected');
  redrawOffsets();
 }
@@ -1502,16 +1528,10 @@ addButton.addEventListener('pointerdown',event=>{
 });
 for(const action of ['pointerup','pointercancel','pointerleave'])addButton.addEventListener(action,()=>clearTimeout(pressTimer));
 addButton.addEventListener('contextmenu',event=>event.preventDefault());
-editMinimize.addEventListener('click',()=>{
- editCompact=!editCompact;
- // A compact panel can float over the keyboard while editing the top.
- updateEditorDock();
-});
 editMode.addEventListener('change',()=>chooseEditMode(editMode.value));
 editSection.addEventListener('change',()=>{
  const section=editSection.value;
  if(!Object.hasOwn(EDIT_SECTIONS,section))return;
- editorDockOverride=null;editCompact=section==='header';
  populateEditTargets(section);
  chooseEditElement(EDIT_SECTIONS[section][0][0]);
 });
@@ -1616,7 +1636,7 @@ function makeLayoutBackup(){
  return {
   format:LAYOUT_BACKUP_FORMAT,
   schemaVersion:LAYOUT_BACKUP_SCHEMA,
-  appVersion:29,
+  appVersion:30,
   exportedAt:new Date().toISOString(),
   settings:cloneProfiles(editing?draftOffsets:savedOffsets)
  };
@@ -1636,6 +1656,12 @@ function validateLayoutBackup(data){
  const normalized=cleanProfiles(raw);
  const numericKeys=['fontPx','listGapPx','actionsX','actionGapPx','fadeHeight','fadePosition','topFadeHeight','topFadePosition'];
  const optionalOpacityKeys=['fadeOpacity','topFadeOpacity'];
+ if(raw.editorPanel!==undefined){
+  if(!raw.editorPanel||typeof raw.editorPanel!=='object'||Array.isArray(raw.editorPanel))throw new Error('Tamanho do editor inválido');
+  for(const key of ['height','width']){
+   if(!Number.isInteger(raw.editorPanel[key])||raw.editorPanel[key]!==normalized.editorPanel[key])throw new Error('Dimensão inválida em editorPanel.'+key);
+  }
+ }
  if(raw.peek!==undefined){
   const peek=raw.peek;
   if(!peek||typeof peek!=='object'||Array.isArray(peek)||!Number.isInteger(peek.size)||peek.size!==normalized.peek.size||!Number.isInteger(peek.opacity)||peek.opacity!==normalized.peek.opacity)throw new Error('Peek inválido');
@@ -1783,7 +1809,7 @@ refreshComposerMeasure();
 // v21: atualização discreta no PRIMEIRO item das conversas recentes.
 // Nenhum redirecionamento automático, nem durante o force nem numa conversa aberta.
 // A consulta bypassa cache HTTP e volta a ser feita a cada abertura do menu.
-const GPT_FORCE_VERSION=29;
+const GPT_FORCE_VERSION=30;
 const DEFAULT_RECENT_TITLE='Quando usar por que e porque';
 let latestAvailableVersion=null;
 let updateCheckSequence=0;
