@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ChatGPT">
-<link rel="manifest" href="manifest.webmanifest?v=22">
-<link rel="apple-touch-icon" href="icon-192.png?v=22">
+<link rel="manifest" href="manifest.webmanifest?v=23">
+<link rel="apple-touch-icon" href="icon-192.png?v=23">
 <title>ChatGPT</title>
 <style>
 :root{color-scheme:dark;--bg:#000;--fg:#f5f5f5;--muted:#9b9b9d;--surface:#222224;--surface2:#2d2d30;--outline:#38383b;--header-h:60px;--app-height:100dvh}
@@ -20,6 +20,17 @@ button{border:0;color:inherit;background:none;cursor:pointer;touch-action:manipu
 button:focus-visible,textarea:focus-visible{outline:2px solid #8585fc;outline-offset:2px}
 button:active{opacity:.67}
 svg{display:block}
+/* v23: all interface chrome behaves like native app chrome, not selectable text.
+   Conversation results and the actual textarea are deliberately excluded. */
+button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.toast,
+.jump-to-bottom,.reset-confirm{
+ -webkit-user-select:none;user-select:none;
+ -webkit-touch-callout:none;
+}
+.prompt,.message-user,.assistant-message{
+ -webkit-user-select:text;user-select:text;
+ -webkit-touch-callout:default;
+}
 /* Anchor the whole app to the visual (keyboard-unobscured) viewport.
    iOS Safari can scroll the visual viewport inside the layout viewport on focus. */
 .app{width:var(--viewport-width,100%);height:var(--app-height);min-height:0;top:var(--viewport-top,0px);left:var(--viewport-left,0px);background:var(--bg);overflow:hidden;position:fixed;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -206,28 +217,33 @@ svg{display:block}
 }
 .app.has-messages .conversation{
  margin-top:calc(-1 * env(safe-area-inset-top,0px));
+ /* The transcript is ONE scroll surface behind the fixed composer.
+    The mask fades the CONTENT, not a solid black backdrop, so list rows
+    remain visible beneath and below the input pill. */
  -webkit-mask-image:linear-gradient(to bottom,
-  rgba(0,0,0,.10) 0px,
-  rgba(0,0,0,.23) 50px,
-  rgba(0,0,0,.38) 80px,
-  rgba(0,0,0,.65) 120px,
-  rgba(0,0,0,.9) 156px,
+  rgba(0,0,0,var(--mask-top-0,.10)) 0px,
+  rgba(0,0,0,var(--mask-top-1,.23)) 50px,
+  rgba(0,0,0,var(--mask-top-2,.38)) 80px,
+  rgba(0,0,0,var(--mask-top-3,.65)) 120px,
+  rgba(0,0,0,var(--mask-top-4,.90)) 156px,
   #000 188px,
-  #000 calc(100% - var(--composer-real-height,88px) - 90px),
-  rgba(0,0,0,.55) calc(100% - var(--composer-real-height,88px) - 5px),
-  rgba(0,0,0,.19) calc(100% - var(--composer-real-height,88px) + 28px),
-  rgba(0,0,0,.12) 100%);
+  #000 calc(100% - var(--composer-real-height,88px) - var(--fade-height,140px) + var(--fade-position,12px)),
+  rgba(0,0,0,var(--mask-bottom-1,.74)) calc(100% - var(--composer-real-height,88px) - (var(--fade-height,140px) * .45) + var(--fade-position,12px)),
+  rgba(0,0,0,var(--mask-bottom-2,.48)) calc(100% - var(--composer-real-height,88px) + var(--fade-position,12px)),
+  rgba(0,0,0,var(--mask-bottom-3,.25)) calc(100% - (var(--composer-real-height,88px) * .40)),
+  rgba(0,0,0,var(--mask-bottom-4,.14)) 100%);
  mask-image:linear-gradient(to bottom,
-  rgba(0,0,0,.10) 0px,
-  rgba(0,0,0,.23) 50px,
-  rgba(0,0,0,.38) 80px,
-  rgba(0,0,0,.65) 120px,
-  rgba(0,0,0,.9) 156px,
+  rgba(0,0,0,var(--mask-top-0,.10)) 0px,
+  rgba(0,0,0,var(--mask-top-1,.23)) 50px,
+  rgba(0,0,0,var(--mask-top-2,.38)) 80px,
+  rgba(0,0,0,var(--mask-top-3,.65)) 120px,
+  rgba(0,0,0,var(--mask-top-4,.90)) 156px,
   #000 188px,
-  #000 calc(100% - var(--composer-real-height,88px) - 90px),
-  rgba(0,0,0,.55) calc(100% - var(--composer-real-height,88px) - 5px),
-  rgba(0,0,0,.19) calc(100% - var(--composer-real-height,88px) + 28px),
-  rgba(0,0,0,.12) 100%);
+  #000 calc(100% - var(--composer-real-height,88px) - var(--fade-height,140px) + var(--fade-position,12px)),
+  rgba(0,0,0,var(--mask-bottom-1,.74)) calc(100% - var(--composer-real-height,88px) - (var(--fade-height,140px) * .45) + var(--fade-position,12px)),
+  rgba(0,0,0,var(--mask-bottom-2,.48)) calc(100% - var(--composer-real-height,88px) + var(--fade-position,12px)),
+  rgba(0,0,0,var(--mask-bottom-3,.25)) calc(100% - (var(--composer-real-height,88px) * .40)),
+  rgba(0,0,0,var(--mask-bottom-4,.14)) 100%);
 }
 .app.has-messages .messages{
  padding-top:calc(11px + env(safe-area-inset-top,0px) + var(--header-h));
@@ -261,7 +277,9 @@ svg{display:block}
   rgba(0,0,0,.88) 90%,
   #000 100%);
 }
-.app.has-messages .scroll-fade{display:block}
+/* The old opaque black overlay is intentionally disabled in v23.
+   Position/height settings now affect the conversation's mask directly. */
+.app.has-messages .scroll-fade{display:none}
 /* v19: fade superior espelhado, com a MESMA curva visual do inferior.
    Fica preso ao cabeçalho e não intercepta gestos nem os botões do topo. */
 .app-header > button{position:relative;z-index:1}
@@ -282,7 +300,7 @@ svg{display:block}
   rgba(0,0,0,.88) 90%,
   #000 100%);
 }
-.app.has-messages .app-header::after{display:block}
+.app.has-messages .app-header::after{display:block;opacity:var(--top-fade-strength,1)}
 /* The existing fades remain untouched, but the header and composer region
    no longer paint solid black sheets over the scrollable conversation. */
 .composer-region > .composer,.composer-region > .footer-caption{position:relative;z-index:1}
@@ -334,7 +352,7 @@ svg{display:block}
   </header>
   <main class="conversation" id="conversation" aria-label="Conversa">
     <section class="welcome" id="welcome">
-      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=22" alt="" aria-hidden="true">
+      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=23" alt="" aria-hidden="true">
       <h1 class="welcome-title" data-edit-key="welcome-title">Como posso ajudar?</h1>
     </section>
     <section class="messages" id="messages" aria-live="off"></section>
@@ -696,7 +714,7 @@ function parseRequest(question){
 }
 async function fetchListFile(category){
  if(!category||!/^[a-z0-9]+$/.test(category))throw Error('categoria invalida');
- const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=22&ts='+Date.now(),{cache:'no-store'});
+ const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=23&ts='+Date.now(),{cache:'no-store'});
  if(!response.ok)throw Error('lista nao disponivel');
  const raw=await response.text();
  return raw.replace(/^\uFEFF/,'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -945,7 +963,8 @@ const EDIT_SECTIONS={
   ['model','Título ChatGPT'],
   ['newchat','Nova conversa'],
   ['top-fade-height','Degradê superior: altura'],
-  ['top-fade-position','Degradê superior: posição']
+  ['top-fade-position','Degradê superior: posição'],
+  ['top-fade-opacity','Degradê superior: opacidade']
  ],
  welcome:[
   ['welcome-logo','Logotipo central'],
@@ -966,6 +985,7 @@ const EDIT_SECTIONS={
  bottom:[
   ['fade-height','Degradê inferior: altura'],
   ['fade-position','Degradê inferior: posição'],
+  ['fade-opacity','Degradê inferior: opacidade'],
   ['composer-region','Barra inferior inteira'],
   ['composer','Campo de mensagem'],
   ['plus','Botão +'],
@@ -1018,6 +1038,10 @@ const DEFAULT_FADE_POSITION=12, MIN_FADE_POSITION=-100, MAX_FADE_POSITION=100;
 // Ajustes superiores são independentes, os valores inferiores existentes não mudam.
 const DEFAULT_TOP_FADE_HEIGHT=140, MIN_TOP_FADE_HEIGHT=30, MAX_TOP_FADE_HEIGHT=320;
 const DEFAULT_TOP_FADE_POSITION=12, MIN_TOP_FADE_POSITION=-100, MAX_TOP_FADE_POSITION=100;
+const DEFAULT_FADE_OPACITY=85, DEFAULT_TOP_FADE_OPACITY=100;
+function cleanOpacity(value,defaultValue){
+ return Number.isInteger(value)&&value>=0&&value<=100?value:defaultValue;
+}
 function cleanFadeHeight(value){
  return Number.isInteger(value)&&value>=MIN_FADE_HEIGHT&&value<=MAX_FADE_HEIGHT?value:DEFAULT_FADE_HEIGHT;
 }
@@ -1051,10 +1075,12 @@ function cleanProfiles(raw){
   fadeHeight:cleanFadeHeight(raw?.fadeHeight),
   fadePosition:cleanFadePosition(raw?.fadePosition),
   topFadeHeight:cleanTopFadeHeight(raw?.topFadeHeight),
-  topFadePosition:cleanTopFadePosition(raw?.topFadePosition)
+  topFadePosition:cleanTopFadePosition(raw?.topFadePosition),
+  fadeOpacity:cleanOpacity(raw?.fadeOpacity,DEFAULT_FADE_OPACITY),
+  topFadeOpacity:cleanOpacity(raw?.topFadeOpacity,DEFAULT_TOP_FADE_OPACITY)
  };
 }
-function cloneProfiles(value){return {shared:{...value.shared},closed:{...value.closed},open:{...value.open},fontPx:value.fontPx,listGapPx:value.listGapPx,actionsX:value.actionsX,actionGapPx:value.actionGapPx,actionSizes:[...value.actionSizes],fadeHeight:value.fadeHeight,fadePosition:value.fadePosition,topFadeHeight:value.topFadeHeight,topFadePosition:value.topFadePosition};}
+function cloneProfiles(value){return {shared:{...value.shared},closed:{...value.closed},open:{...value.open},fontPx:value.fontPx,listGapPx:value.listGapPx,actionsX:value.actionsX,actionGapPx:value.actionGapPx,actionSizes:[...value.actionSizes],fadeHeight:value.fadeHeight,fadePosition:value.fadePosition,topFadeHeight:value.topFadeHeight,topFadePosition:value.topFadePosition,fadeOpacity:value.fadeOpacity,topFadeOpacity:value.topFadeOpacity};}
 let savedOffsets=cleanProfiles({});
 try{
  const existing=localStorage.getItem(STORAGE_KEY);
@@ -1079,6 +1105,8 @@ const FADE_HEIGHT_KEY='fade-height';
 const FADE_POSITION_KEY='fade-position';
 const TOP_FADE_HEIGHT_KEY='top-fade-height';
 const TOP_FADE_POSITION_KEY='top-fade-position';
+const FADE_OPACITY_KEY='fade-opacity';
+const TOP_FADE_OPACITY_KEY='top-fade-opacity';
 const ACTION_GAP_KEY='response-action-gap';
 const ACTION_SIZE_PREFIX='response-action-size-';
 function actionSizeIndex(key){
@@ -1112,6 +1140,13 @@ function redrawOffsets(){
  app.style.setProperty('--fade-position',offsets.fadePosition+'px');
  app.style.setProperty('--top-fade-height',offsets.topFadeHeight+'px');
  app.style.setProperty('--top-fade-position',offsets.topFadePosition+'px');
+ const bottomStrength=offsets.fadeOpacity/100;
+ const topStrength=offsets.topFadeOpacity/100;
+ const topAlphas=[.10,.23,.38,.65,.90];
+ const bottomAlphas=[.74,.48,.25,.14];
+ topAlphas.forEach((alpha,index)=>app.style.setProperty('--mask-top-'+index,(1-(1-alpha)*topStrength).toFixed(3)));
+ bottomAlphas.forEach((alpha,index)=>app.style.setProperty('--mask-bottom-'+(index+1),(1-(1-alpha)*bottomStrength).toFixed(3)));
+ app.style.setProperty('--top-fade-strength',String(topStrength));
  const displayedMode=editing?selectedMode:(keyboardIsOpen?'open':'closed');
  for(const node of editableNodes){
   const key=node.dataset.editKey;
@@ -1154,6 +1189,14 @@ function redrawOffsets(){
   editPixels.textContent=draftOffsets.topFadePosition+' px · posição do degradê superior';
   editUpButton.setAttribute('aria-label','Subir degradê superior um pixel');
   editDownButton.setAttribute('aria-label','Descer degradê superior um pixel');
+ }else if(selectedElement===FADE_OPACITY_KEY){
+  editPixels.textContent=draftOffsets.fadeOpacity+'% · opacidade do degradê inferior';
+  editUpButton.setAttribute('aria-label','Aumentar opacidade inferior em um ponto percentual');
+  editDownButton.setAttribute('aria-label','Diminuir opacidade inferior em um ponto percentual');
+ }else if(selectedElement===TOP_FADE_OPACITY_KEY){
+  editPixels.textContent=draftOffsets.topFadeOpacity+'% · opacidade do degradê superior';
+  editUpButton.setAttribute('aria-label','Aumentar opacidade superior em um ponto percentual');
+  editDownButton.setAttribute('aria-label','Diminuir opacidade superior em um ponto percentual');
  }else if(selectedElement===ACTION_GAP_KEY){
   editPixels.textContent=draftOffsets.actionGapPx+' px · espaço entre cada botão';
   editUpButton.setAttribute('aria-label','Aumentar espaço entre botões em um pixel');
@@ -1185,6 +1228,10 @@ function redrawOffsets(){
      ? '↑ amplia e ↓ reduz em 1 px o degradê do topo, sem alterar o degradê inferior.'
    :selectedElement===TOP_FADE_POSITION_KEY
      ? '↑ sobe e ↓ desce em 1 px o degradê do topo, acompanhando o cabeçalho.'
+   :selectedElement===FADE_OPACITY_KEY
+     ? '↑ aumenta e ↓ diminui a intensidade do degradê inferior de 1 em 1%, sem esconder a lista sob o campo.'
+   :selectedElement===TOP_FADE_OPACITY_KEY
+     ? '↑ aumenta e ↓ diminui a intensidade do degradê superior de 1 em 1%.'
    :selectedElement===RESPONSE_ACTIONS_KEY
      ? '↑ ↓ ← → deslocam os cinco botões reais em passos de 1 px. Gere uma resposta antes de ajustar.'
    :selectedElement===ACTION_GAP_KEY
@@ -1197,7 +1244,7 @@ function redrawOffsets(){
  }
 }
 function chooseEditElement(key){
- if(key!==TEXT_SIZE_KEY&&key!==LIST_SPACING_KEY&&key!==FADE_HEIGHT_KEY&&key!==FADE_POSITION_KEY&&key!==TOP_FADE_HEIGHT_KEY&&key!==TOP_FADE_POSITION_KEY&&!isActionSetting(key)&&!editableKeys.has(key))return;
+ if(key!==TEXT_SIZE_KEY&&key!==LIST_SPACING_KEY&&key!==FADE_HEIGHT_KEY&&key!==FADE_POSITION_KEY&&key!==TOP_FADE_HEIGHT_KEY&&key!==TOP_FADE_POSITION_KEY&&key!==FADE_OPACITY_KEY&&key!==TOP_FADE_OPACITY_KEY&&!isActionSetting(key)&&!editableKeys.has(key))return;
  const section=EDIT_SECTION_BY_KEY.get(key);
  if(!section)return;
  if(editSection.value!==section){editSection.value=section;populateEditTargets(section);}
@@ -1267,6 +1314,10 @@ editUpButton.addEventListener('click',()=>{
   draftOffsets.topFadeHeight=Math.min(MAX_TOP_FADE_HEIGHT,draftOffsets.topFadeHeight+1);
  }else if(selectedElement===TOP_FADE_POSITION_KEY){
   draftOffsets.topFadePosition=Math.min(MAX_TOP_FADE_POSITION,draftOffsets.topFadePosition+1);
+ }else if(selectedElement===FADE_OPACITY_KEY){
+  draftOffsets.fadeOpacity=Math.min(100,draftOffsets.fadeOpacity+1);
+ }else if(selectedElement===TOP_FADE_OPACITY_KEY){
+  draftOffsets.topFadeOpacity=Math.min(100,draftOffsets.topFadeOpacity+1);
  }else if(selectedElement===ACTION_GAP_KEY){
   draftOffsets.actionGapPx=Math.min(MAX_ACTION_GAP,draftOffsets.actionGapPx+1);
  }else if(actionSizeIndex(selectedElement)>=0){
@@ -1291,6 +1342,10 @@ editDownButton.addEventListener('click',()=>{
   draftOffsets.topFadeHeight=Math.max(MIN_TOP_FADE_HEIGHT,draftOffsets.topFadeHeight-1);
  }else if(selectedElement===TOP_FADE_POSITION_KEY){
   draftOffsets.topFadePosition=Math.max(MIN_TOP_FADE_POSITION,draftOffsets.topFadePosition-1);
+ }else if(selectedElement===FADE_OPACITY_KEY){
+  draftOffsets.fadeOpacity=Math.max(0,draftOffsets.fadeOpacity-1);
+ }else if(selectedElement===TOP_FADE_OPACITY_KEY){
+  draftOffsets.topFadeOpacity=Math.max(0,draftOffsets.topFadeOpacity-1);
  }else if(selectedElement===ACTION_GAP_KEY){
   draftOffsets.actionGapPx=Math.max(MIN_ACTION_GAP,draftOffsets.actionGapPx-1);
  }else if(actionSizeIndex(selectedElement)>=0){
@@ -1318,7 +1373,7 @@ function makeLayoutBackup(){
  return {
   format:LAYOUT_BACKUP_FORMAT,
   schemaVersion:LAYOUT_BACKUP_SCHEMA,
-  appVersion:20,
+  appVersion:23,
   exportedAt:new Date().toISOString(),
   settings:cloneProfiles(editing?draftOffsets:savedOffsets)
  };
@@ -1337,8 +1392,12 @@ function validateLayoutBackup(data){
  }
  const normalized=cleanProfiles(raw);
  const numericKeys=['fontPx','listGapPx','actionsX','actionGapPx','fadeHeight','fadePosition','topFadeHeight','topFadePosition'];
+ const optionalOpacityKeys=['fadeOpacity','topFadeOpacity'];
  for(const key of numericKeys){
   if(!Number.isInteger(raw[key])||normalized[key]!==raw[key])throw new Error('Valor inválido em '+key);
+ }
+ for(const key of optionalOpacityKeys){
+  if(raw[key]!==undefined&&(!Number.isInteger(raw[key])||normalized[key]!==raw[key]))throw new Error('Opacidade inválida em '+key);
  }
  if(!Array.isArray(raw.actionSizes)||raw.actionSizes.length!==5||raw.actionSizes.some((v,i)=>!Number.isInteger(v)||v!==normalized.actionSizes[i])){
   throw new Error('Tamanhos dos botões inválidos');
@@ -1470,7 +1529,7 @@ refreshComposerMeasure();
 // v21: atualização discreta no PRIMEIRO item das conversas recentes.
 // Nenhum redirecionamento automático, nem durante o force nem numa conversa aberta.
 // A consulta bypassa cache HTTP e volta a ser feita a cada abertura do menu.
-const GPT_FORCE_VERSION=22;
+const GPT_FORCE_VERSION=23;
 const DEFAULT_RECENT_TITLE='Quando usar por que e porque';
 let latestAvailableVersion=null;
 let updateCheckSequence=0;
