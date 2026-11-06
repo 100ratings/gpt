@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ChatGPT">
-<link rel="manifest" href="manifest.webmanifest?v=27">
-<link rel="apple-touch-icon" href="icon-192.png?v=27">
+<link rel="manifest" href="manifest.webmanifest?v=28">
+<link rel="apple-touch-icon" href="icon-192.png?v=28">
 <title>ChatGPT</title>
 <style>
 :root{color-scheme:dark;--bg:#000;--fg:#f5f5f5;--muted:#9b9b9d;--surface:#222224;--surface2:#2d2d30;--outline:#38383b;--header-h:60px;--app-height:100dvh}
@@ -213,6 +213,41 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
 .app.is-editing [data-edit-key].edit-selected{outline:2px dashed #ffd76e;outline-offset:3px;border-radius:5px}
 @media(max-width:360px){.edit-panel{left:6px;right:6px}.edit-panel .edit-arrow{min-width:36px}}
 
+/* v28 editor: never obscure the title while adjusting the top. */
+.edit-panel-top-actions{display:flex;align-items:center;gap:6px}
+.edit-panel .edit-minimize{background:#414145;border:1px solid #66666a;border-radius:10px;min-height:40px;padding:8px;font-size:12px;font-weight:600}
+.edit-panel.is-compact{padding:8px 10px;gap:7px;max-height:min(205px,calc(var(--app-height,100dvh) - 12px));}
+.edit-panel.is-compact #editAreaRow,
+.edit-panel.is-compact #editModeControls,
+.edit-panel.is-compact .edit-mode-hint,
+.edit-panel.is-compact .edit-panel-bottom,
+.edit-panel.is-compact .edit-backup{display:none!important}
+.edit-panel.is-compact .edit-section-row label[for="editTarget"]{display:none}
+.edit-panel.dock-bottom{top:auto;bottom:8px}
+.edit-panel.dock-bottom .edit-panel-top{touch-action:manipulation}
+@media(max-height:480px){
+ .edit-panel.is-compact{max-height:calc(var(--app-height,100dvh) - 16px)}
+ .edit-panel.dock-bottom{bottom:4px}
+}
+/* v28 landscape fallthrough for browsers ignoring manifest orientation.
+   CSS visually counter-rotates the portrait UI without changing ANY portrait
+   coordinates, header styles, or force logic. */
+@media (orientation:landscape) and (pointer:coarse) and (max-height:700px){
+ .app{
+  top:0!important;left:100dvw!important;
+  width:100dvh!important;height:100dvw!important;
+  transform-origin:top left!important;
+  transform:rotate(90deg)!important;
+ }
+ .app.landscape-counter{
+  top:100dvh!important;left:0!important;
+  transform:rotate(-90deg)!important;
+ }
+ .app.has-messages:not(.keyboard-open){
+  height:100dvw!important;
+ }
+}
+
 /* v24: the full scroll surface reaches the bottom of the screen, including
    the iPhone safe area behind the footer, with no solid black bar at the edge.
    The composer remains above the home indicator, preserving tap positions. */
@@ -375,7 +410,7 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
   </header>
   <main class="conversation" id="conversation" aria-label="Conversa">
     <section class="welcome" id="welcome">
-      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=27" alt="" aria-hidden="true">
+      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=28" alt="" aria-hidden="true">
       <h1 class="welcome-title" data-edit-key="welcome-title">Como posso ajudar?</h1>
     </section>
     <section class="messages" id="messages" aria-live="off"></section>
@@ -423,8 +458,8 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
   <div class="popover" id="modelPopover"><button type="button" id="modelClose">ChatGPT <span>✓</span></button></div>
 
   <div class="edit-panel" id="editPanel" hidden>
-    <div class="edit-panel-top"><strong>Ajustar interface</strong><button class="edit-save" type="button" id="editSave">Salvar</button></div>
-    <div class="edit-section-row">
+    <div class="edit-panel-top"><strong>Ajustar interface</strong><div class="edit-panel-top-actions"><button class="edit-minimize" type="button" id="editMinimize" aria-label="Compactar painel de ajustes">Compactar</button><button class="edit-save" type="button" id="editSave">Salvar</button></div></div>
+    <div class="edit-section-row" id="editAreaRow">
       <label for="editSection">Área da tela</label>
       <select id="editSection" aria-label="Área da tela para ajustar">
         <option value="header">1 · Topo</option>
@@ -544,7 +579,7 @@ let forceEmojiSpan=null;
 let revealTimer=null;
 let revealPending=false;
 const NORMAL_PLACEHOLDER='Perguntar ao ChatGPT';
-const SECRET_PLACEHOLDER='Pergunte ao ChatGPT';
+const SECRET_PLACEHOLDER='Perguntar ao ChatGPT.';
 const ARMED_PLACEHOLDER='Perguntar ao ChatGPT.';
 let secretMode=false;
 function updatePlaceholder(){
@@ -606,12 +641,37 @@ function showConfirmation(){
 // V18 mantém o campo único da v17: com corretor nativo habilitado desde o foco.
 // O código secreto é armazenado apenas em `digits`, separado do texto visível.
 // Nunca alternamos atributos do teclado enquanto o campo está focado.
+function resetPromptHeight(){
+ // Always restore the original one-line geometry, including after blur,
+ // a failed request, a new chat, or an iOS input-method replacement.
+ prompt.style.height='32px';
+ prompt.style.overflowY='hidden';
+ prompt.scrollTop=0;
+}
+function stripManualLines(value){
+ return value.replace(/[\r\n\u2028\u2029]+/g,' ');
+}
+function enforceSingleParagraph(){
+ const before=prompt.value;
+ const after=stripManualLines(before);
+ if(before===after)return false;
+ const caret=prompt.selectionStart;
+ const correctedCaret=stripManualLines(before.slice(0,caret)).length;
+ prompt.value=after;
+ prompt.setSelectionRange(correctedCaret,correctedCaret);
+ return true;
+}
 function updateComposer(){
   const canSend=prompt.value.trim().length>0 && (!secretMode || digits.length===2) && !generating;
   app.classList.toggle('ready-to-send',canSend);
   sendButton.disabled=!canSend;
+  if(!prompt.value){resetPromptHeight();return;}
+  // Wrapping is allowed naturally, but explicit line breaks never persist.
+  enforceSingleParagraph();
   prompt.style.height='32px';
-  prompt.style.height=Math.min(Math.max(32,prompt.scrollHeight),122)+'px';
+  const targetHeight=Math.min(Math.max(32,prompt.scrollHeight),122);
+  prompt.style.height=targetHeight+'px';
+  prompt.style.overflowY=targetHeight>=122?'auto':'hidden';
 }
 function applySecret(chars){
   for(const char of Array.from(chars)){
@@ -623,12 +683,22 @@ function applySecret(chars){
   showConfirmation();
   updateComposer();
 }
+// One paragraph only: iOS native keyboard, Return, Shift+Return, and IME actions
+// may all insert a newline into textarea unless the input intent is blocked.
+prompt.addEventListener('beforeinput',(ev)=>{
+ if(ev.inputType==='insertLineBreak'||ev.inputType==='insertParagraph'){
+  ev.preventDefault();
+  // The action key is Send, never a manual newline.
+  if(!ev.isComposing)sendRequest();
+ }
+},true);
 // beforeinput captura teclas físicas e virtuais sem exibir os dois caracteres secretos
 prompt.addEventListener('beforeinput',(ev)=>{
   if(!secretMode || ev.isComposing || generating)return;
   if(!ev.inputType.startsWith('insert'))return;
   let chars=ev.data;
   if(!chars && ev.dataTransfer)chars=ev.dataTransfer.getData('text/plain');
+  if(chars)chars=stripManualLines(chars);
   if(!chars)return;
   const start=prompt.selectionStart, end=prompt.selectionEnd;
   // Correções e sugestões do iOS nunca contam como teclas secretas.
@@ -665,6 +735,9 @@ prompt.addEventListener('beforeinput',(ev)=>{
 // Fallback para teclados móveis que não disparam beforeinput cancelável
 prompt.addEventListener('input',(ev)=>{
   if(generating)return;
+  // Pasted text, dictation, autocorrect, and input method fallbacks must
+  // never leave hard newlines inside the composer.
+  enforceSingleParagraph();
   if(!secretMode){visibleText=prompt.value;updateComposer();return;}
   if(ev.inputType==='insertReplacementText'){
     if(digits.length<2){
@@ -691,7 +764,7 @@ prompt.addEventListener('input',(ev)=>{
   updateComposer();
 });
 prompt.addEventListener('keydown',(ev)=>{
-  if(ev.key==='Enter'&&!ev.shiftKey&&!ev.isComposing){ev.preventDefault();sendRequest();}
+  if(ev.key==='Enter'){ev.preventDefault();if(!ev.isComposing)sendRequest();}
 });
 function normalise(value){
  return value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
@@ -765,7 +838,7 @@ function parseRequest(question){
 }
 async function fetchListFile(category){
  if(!category||!/^[a-z0-9]+$/.test(category))throw Error('categoria invalida');
- const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=27&ts='+Date.now(),{cache:'no-store'});
+ const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=28&ts='+Date.now(),{cache:'no-store'});
  if(!response.ok)throw Error('lista nao disponivel');
  const raw=await response.text();
  return raw.replace(/^\uFEFF/,'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -878,7 +951,7 @@ function cancelGeneration(){generationToken++;generating=false;clearTimeout(acti
 function resetNewChat(){
  followTail=false;
  cancelGeneration();clearConfirmation();secretMode=false;updatePlaceholder();digits=[];visibleText='';selectedAnswerList=[];currentPosition=1;currentForce='';forceEmojiSpan=null;cancelReveal();
- prompt.value='';messages.replaceChildren();app.classList.remove('has-messages');
+ prompt.value='';resetPromptHeight();messages.replaceChildren();app.classList.remove('has-messages');
  scroller.scrollTop=0;updateComposer();closeOverlays();updateJumpButton();
  // Verifica atualização sem redirecionar automaticamente, o menu oferece a opção.
  checkForUpdatedVersion();
@@ -901,7 +974,7 @@ async function sendRequest(){
  followTail=false;refreshComposerMeasure();
  responseIntro=request?'Aqui estão '+quantity+' '+request.candidates[0].label+':':'Confira a solicitação:';
  const reply=createAssistant(sentText);
- prompt.value='';visibleText='';digits=[];setSecretMode(false);updateComposer();
+ prompt.value='';resetPromptHeight();visibleText='';digits=[];setSecretMode(false);updateComposer();
  // Show the user bubble and start the answer at the top of the transcript.
  // New content flows beneath the stationary viewport and raises the jump button.
  scroller.scrollTop=0;
@@ -1005,6 +1078,21 @@ micVoiceHitZone.addEventListener('click',(event)=>{
 const STORAGE_KEY='gpt-force-layout-v4';
 const LEGACY_STORAGE_KEY='gpt-force-layout-v2';
 const editPanel=document.getElementById('editPanel');
+const editMinimize=document.getElementById('editMinimize');
+let editCompact=false;
+let editorDockOverride=null;
+function updateEditorDock(){
+ if(!editing)return;
+ // Header editor defaults to the slim panel AT THE BOTTOM of the visible
+ // viewport so the actual title/status bar remain entirely unobscured.
+ const isHeader=editSection.value==='header';
+ const dock=editorDockOverride===null?isHeader:editorDockOverride;
+ editPanel.classList.toggle('dock-bottom',dock);
+ editPanel.classList.toggle('is-compact',editCompact);
+ editMinimize.textContent=editCompact?'Expandir':'Compactar';
+ editMinimize.setAttribute('aria-label',editCompact?'Expandir painel de ajustes':'Compactar painel de ajustes');
+}
+
 const editMode=document.getElementById('editMode');
 const editModeHint=document.getElementById('editModeHint');
 const editKeyboard=document.getElementById('editKeyboard');
@@ -1383,8 +1471,9 @@ function chooseEditElement(key){
  if(key!==TEXT_SIZE_KEY&&key!==LIST_SPACING_KEY&&key!==FADE_HEIGHT_KEY&&key!==FADE_POSITION_KEY&&key!==TOP_FADE_HEIGHT_KEY&&key!==TOP_FADE_POSITION_KEY&&key!==FADE_OPACITY_KEY&&key!==TOP_FADE_OPACITY_KEY&&!isActionSetting(key)&&!isPeekSetting(key)&&!editableKeys.has(key))return;
  const section=EDIT_SECTION_BY_KEY.get(key);
  if(!section)return;
- if(editSection.value!==section){editSection.value=section;populateEditTargets(section);}
+ if(editSection.value!==section){editSection.value=section;editorDockOverride=null;editCompact=section==='header';populateEditTargets(section);}
  selectedElement=key;editTarget.value=key;
+ updateEditorDock();
  for(const node of editableNodes)node.classList.toggle('edit-selected',key!==TEXT_SIZE_KEY&&key!==LIST_SPACING_KEY&&node.dataset.editKey===key);
  redrawOffsets();
  if(editing && isActionSetting(key)){
@@ -1403,6 +1492,7 @@ function beginEdit(){
  editBackupStatus.classList.remove('highlight');
  editBackupStatus.textContent='Exportar cria um backup, importar permite conferir antes de salvar';
  editing=true;cancelReveal();clearConfirmation();didLongPress=true;draftOffsets=cloneProfiles(savedOffsets);
+ editCompact=false;editorDockOverride=null;
  selectedMode=keyboardIsOpen?'open':'closed';
  app.classList.add('is-editing');editPanel.hidden=false;
  chooseEditMode(selectedMode);chooseEditElement('composer-region');
@@ -1417,6 +1507,7 @@ function stopEdit(save){
   catch(error){showToast('Não foi possível salvar neste navegador');}
  }else draftOffsets=cloneProfiles(savedOffsets);
  editing=false;app.classList.remove('is-editing');editPanel.hidden=true;
+ editPanel.classList.remove('dock-bottom','is-compact');
  for(const node of editableNodes)node.classList.remove('edit-selected');
  redrawOffsets();
 }
@@ -1429,10 +1520,16 @@ addButton.addEventListener('pointerdown',event=>{
 });
 for(const action of ['pointerup','pointercancel','pointerleave'])addButton.addEventListener(action,()=>clearTimeout(pressTimer));
 addButton.addEventListener('contextmenu',event=>event.preventDefault());
+editMinimize.addEventListener('click',()=>{
+ editCompact=!editCompact;
+ // A compact panel can float over the keyboard while editing the top.
+ updateEditorDock();
+});
 editMode.addEventListener('change',()=>chooseEditMode(editMode.value));
 editSection.addEventListener('change',()=>{
  const section=editSection.value;
  if(!Object.hasOwn(EDIT_SECTIONS,section))return;
+ editorDockOverride=null;editCompact=section==='header';
  populateEditTargets(section);
  chooseEditElement(EDIT_SECTIONS[section][0][0]);
 });
@@ -1537,7 +1634,7 @@ function makeLayoutBackup(){
  return {
   format:LAYOUT_BACKUP_FORMAT,
   schemaVersion:LAYOUT_BACKUP_SCHEMA,
-  appVersion:27,
+  appVersion:28,
   exportedAt:new Date().toISOString(),
   settings:cloneProfiles(editing?draftOffsets:savedOffsets)
  };
@@ -1663,17 +1760,20 @@ function resizeToViewport(){
  const vv=window.visualViewport;
  const h=Math.max(220,Math.round(vv?.height||window.innerHeight));
  const w=Math.round(vv?.width||window.innerWidth);
+ const landscape=matchMedia('(pointer:coarse)').matches && window.innerWidth>window.innerHeight && window.innerHeight<700 && window.innerWidth>550;
+ const apparentHeight=landscape?Math.max(h,w):h;
+ app.classList.toggle('landscape-counter',landscape && ((window.orientation??screen.orientation?.angle??90)<0));
  const top=Math.round(vv?.offsetTop||0);
  const left=Math.round(vv?.offsetLeft||0);
  // Record the largest observed unoccluded viewport, including when Safari's
  // browser chrome expands or collapses; do not mistake toolbar changes for keyboard.
- if(h>baselineHeight)baselineHeight=h;
- const open=h < baselineHeight-130;
+ if(apparentHeight>baselineHeight)baselineHeight=apparentHeight;
+ const open=!landscape && h < baselineHeight-130;
  keyboardIsOpen=open;
- document.documentElement.style.setProperty('--app-height',h+'px');
- document.documentElement.style.setProperty('--viewport-width',w+'px');
- document.documentElement.style.setProperty('--viewport-top',top+'px');
- document.documentElement.style.setProperty('--viewport-left',left+'px');
+ document.documentElement.style.setProperty('--app-height',apparentHeight+'px');
+ document.documentElement.style.setProperty('--viewport-width',(landscape?h:w)+'px');
+ document.documentElement.style.setProperty('--viewport-top',(landscape?0:top)+'px');
+ document.documentElement.style.setProperty('--viewport-left',(landscape?0:left)+'px');
  app.classList.toggle('keyboard-open',open);
  editKeyboard.textContent=open?'Fechar teclado':'Ver com teclado';
  redrawOffsets();
@@ -1692,6 +1792,7 @@ window.addEventListener('scroll',scheduleViewportUpdate,{passive:true});
 window.addEventListener('orientationchange',()=>setTimeout(scheduleViewportUpdate,250));
 for(const phase of ['focus','blur'])prompt.addEventListener(phase,()=>{
  scheduleViewportUpdate();
+ if(phase==='blur')requestAnimationFrame(()=>{if(!prompt.value)resetPromptHeight();});
  // iOS animates the visual viewport over multiple frames on keyboard transitions.
  for(const delay of [60,180,360,600])setTimeout(scheduleViewportUpdate,delay);
 });
@@ -1703,7 +1804,7 @@ refreshComposerMeasure();
 // v21: atualização discreta no PRIMEIRO item das conversas recentes.
 // Nenhum redirecionamento automático, nem durante o force nem numa conversa aberta.
 // A consulta bypassa cache HTTP e volta a ser feita a cada abertura do menu.
-const GPT_FORCE_VERSION=27;
+const GPT_FORCE_VERSION=28;
 const DEFAULT_RECENT_TITLE='Quando usar por que e porque';
 let latestAvailableVersion=null;
 let updateCheckSequence=0;
