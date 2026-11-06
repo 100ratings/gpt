@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ChatGPT">
-<link rel="manifest" href="manifest.webmanifest?v=25">
-<link rel="apple-touch-icon" href="icon-192.png?v=25">
+<link rel="manifest" href="manifest.webmanifest?v=26">
+<link rel="apple-touch-icon" href="icon-192.png?v=26">
 <title>ChatGPT</title>
 <style>
 :root{color-scheme:dark;--bg:#000;--fg:#f5f5f5;--muted:#9b9b9d;--surface:#222224;--surface2:#2d2d30;--outline:#38383b;--header-h:60px;--app-height:100dvh}
@@ -121,7 +121,7 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
 .voice-wave svg{width:25px;height:25px}
 .app.ready-to-send .voice-wave{display:none}
 .app:not(.ready-to-send) .send{display:none}
-.footer-caption{font-size:10px;line-height:14px;color:#707074;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:7px auto 0;padding:0 4px}
+/* v26: no disclaimer and no invisible reserved footer height */
 .modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.52);z-index:10;display:none}
 .modal-backdrop.open{display:block}
 .side-panel{position:absolute;z-index:11;left:0;top:0;bottom:0;width:min(86vw,350px);transform:translateX(-101%);transition:transform .24s ease;background:#1d1d1f;padding:calc(env(safe-area-inset-top,0px) + 16px) 18px 30px;display:flex;flex-direction:column;gap:12px;box-shadow:20px 0 45px rgba(0,0,0,.22)}
@@ -149,9 +149,8 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001s!important;transition-duration:.001s!important}}
 
 
-/* Confirmation is overlaid after the footnote, never changing its height/centering */
-.footer-caption{position:relative;width:max-content;max-width:100%;overflow:visible;text-overflow:clip}
-.secret-confirmation{position:absolute;left:calc(100% + 4px);top:0;opacity:0;white-space:nowrap;font:inherit;color:inherit;pointer-events:none;transition:opacity .12s linear}
+/* Secret number confirmation remains overlay-only and reserves no space. */
+.secret-confirmation{position:absolute;right:16px;top:-14px;z-index:1;opacity:0;white-space:nowrap;font-size:10px;line-height:12px;color:#707074;pointer-events:none;transition:opacity .12s linear}
 .secret-confirmation.visible{opacity:1}
 
 /* Adjustable vertical alignment, initially zero so v1 stays unchanged */
@@ -318,7 +317,7 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
 .app.has-messages .app-header::after{display:block;opacity:var(--top-fade-strength,1)}
 /* The existing fades remain untouched, but the header and composer region
    no longer paint solid black sheets over the scrollable conversation. */
-.composer-region > .composer,.composer-region > .footer-caption{position:relative;z-index:1}
+.composer-region > .composer{position:relative;z-index:1}
 .jump-to-bottom{
  display:none;position:absolute;z-index:5;left:50%;
  bottom:calc(var(--composer-real-height,88px) + env(safe-area-inset-bottom,0px) + 14px);
@@ -367,7 +366,7 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
   </header>
   <main class="conversation" id="conversation" aria-label="Conversa">
     <section class="welcome" id="welcome">
-      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=25" alt="" aria-hidden="true">
+      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=26" alt="" aria-hidden="true">
       <h1 class="welcome-title" data-edit-key="welcome-title">Como posso ajudar?</h1>
     </section>
     <section class="messages" id="messages" aria-live="off"></section>
@@ -392,7 +391,7 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
         </div>
       </div>
     </form>
-    <div class="footer-caption" data-edit-key="footnote">O ChatGPT pode cometer erros. Confira informações importantes<span class="secret-confirmation" id="secretConfirmation" aria-hidden="true"></span></div>
+    <span class="secret-confirmation" id="secretConfirmation" aria-hidden="true"></span>
   </div>
   <div class="modal-backdrop" id="backdrop"></div>
   <aside class="side-panel" id="sidePanel" aria-hidden="true">
@@ -531,12 +530,43 @@ let forceEmojiSpan=null;
 let revealTimer=null;
 let revealPending=false;
 const NORMAL_PLACEHOLDER='Perguntar ao ChatGPT';
+const SECRET_PLACEHOLDER='Pergunte ao ChatGPT';
 const ARMED_PLACEHOLDER='Perguntar ao ChatGPT.';
+let secretMode=false;
+function updatePlaceholder(){
+ prompt.placeholder=revealPending?ARMED_PLACEHOLDER:(secretMode?SECRET_PLACEHOLDER:NORMAL_PLACEHOLDER);
+}
+function setSecretMode(enabled){
+ secretMode=Boolean(enabled);
+ if(!secretMode){digits=[];clearConfirmation();}
+ updatePlaceholder();
+ updateComposer();
+}
+// The secret switch is strictly the empty part INSIDE the existing input pill.
+// Touching the placeholder text stays in normal mode. Nothing is added to the UI.
+function chooseComposerMode(event){
+ if(editing||generating||prompt.value.length)return;
+ const rect=prompt.getBoundingClientRect();
+ const style=getComputedStyle(prompt);
+ const canvas=document.createElement('canvas');
+ const ctx=canvas.getContext('2d');
+ if(!ctx)return;
+ ctx.font=style.font;
+ const placeholderWidth=ctx.measureText(NORMAL_PLACEHOLDER).width;
+ const boundary=placeholderWidth+parseFloat(style.paddingLeft||0)+15;
+ const tapX=event.clientX-rect.left;
+ // An activation works only in the unused horizontal space of textarea.
+ setSecretMode(tapX>boundary&&tapX<rect.width-6);
+}
+prompt.addEventListener('pointerdown',chooseComposerMode);
+if(!window.PointerEvent)prompt.addEventListener('touchstart',event=>{
+ if(event.touches.length===1)chooseComposerMode(event.touches[0]);
+},{passive:true});
 function cancelReveal(){
-  if(revealTimer!==null)clearTimeout(revealTimer);
-  revealTimer=null;
-  revealPending=false;
-  prompt.placeholder=NORMAL_PLACEHOLDER;
+ if(revealTimer!==null)clearTimeout(revealTimer);
+ revealTimer=null;
+ revealPending=false;
+ updatePlaceholder();
 }
 let toastTimer=null;
 const lastResponse={prompt:'',position:1,category:'animais'};
@@ -563,7 +593,7 @@ function showConfirmation(){
 // O código secreto é armazenado apenas em `digits`, separado do texto visível.
 // Nunca alternamos atributos do teclado enquanto o campo está focado.
 function updateComposer(){
-  const canSend=prompt.value.trim().length>0 && digits.length===2 && !generating;
+  const canSend=prompt.value.trim().length>0 && (!secretMode || digits.length===2) && !generating;
   app.classList.toggle('ready-to-send',canSend);
   sendButton.disabled=!canSend;
   prompt.style.height='32px';
@@ -581,7 +611,7 @@ function applySecret(chars){
 }
 // beforeinput captura teclas físicas e virtuais sem exibir os dois caracteres secretos
 prompt.addEventListener('beforeinput',(ev)=>{
-  if(ev.isComposing || generating)return;
+  if(!secretMode || ev.isComposing || generating)return;
   if(!ev.inputType.startsWith('insert'))return;
   let chars=ev.data;
   if(!chars && ev.dataTransfer)chars=ev.dataTransfer.getData('text/plain');
@@ -621,6 +651,7 @@ prompt.addEventListener('beforeinput',(ev)=>{
 // Fallback para teclados móveis que não disparam beforeinput cancelável
 prompt.addEventListener('input',(ev)=>{
   if(generating)return;
+  if(!secretMode){visibleText=prompt.value;updateComposer();return;}
   if(ev.inputType==='insertReplacementText'){
     if(digits.length<2){
       // Fallback para correções nativas não canceláveis no iOS.
@@ -651,105 +682,101 @@ prompt.addEventListener('keydown',(ev)=>{
 function normalise(value){
  return value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 }
-// A category can be typed naturally, with articles, accents, optional adjectives,
-// and even a compound name: "100 pontos turísticos famosos".
-// An exact quantity is required only for these three specialist lists.
-const SPECIAL_LENGTHS={aura:31,familiareszoologicos:31,perguntascontatoespiritual:18};
-function wordsFromRequest(question){
- const plain=normalise(question).trim();
- // A request must still look like a list request, even when no count is given.
- if(!/^(?:liste|lista|listas)\b/.test(plain))return null;
- const rest=plain.replace(/^(?:liste|lista|listas)\b/,'').trim();
- const tokens=rest.match(/[a-z0-9]+/g)||[];
- const qtyMatch=rest.match(/\b(\d{1,3})\b/);
- const explicitQuantity=qtyMatch?Number(qtyMatch[1]):null;
- if(explicitQuantity!==null && (!Number.isInteger(explicitQuantity)||explicitQuantity<1||explicitQuantity>100))return null;
- const has=(...words)=>words.some(word=>tokens.includes(word));
- // These categories are recognized anywhere in the question and default to
- // their complete file length when the user does not say a count.
- let specialFile=null;
- if(has('espiritual','espirituais') || (has('pergunta','perguntas') && (has('contato')||explicitQuantity===18))){
-  specialFile='perguntascontatoespiritual';
- }else if(has('aura','auras')){
-  specialFile='aura';
- }else if(has('familiar','familiares')){
-  specialFile='familiareszoologicos';
- }
- if(specialFile){
-  return {quantity:explicitQuantity??SPECIAL_LENGTHS[specialFile],words:tokens,specialFile};
- }
- // All normal categories still need a numeric count and a category after it.
- if(explicitQuantity===null)return null;
- const afterNumber=rest.slice(qtyMatch.index+qtyMatch[0].length).trim();
- const words=afterNumber.match(/[a-z0-9]+/g)||[];
- if(!words.length)return null;
- // Ignore common articles when the number is followed by one.
- while(['a','o','as','os','de','do','da','dos','das'].includes(words[0]))words.shift();
- if(!words.length)return null;
- return {quantity:explicitQuantity,words};
+// v26: semantic-lite catalog matching. Intent is required, keywords alone are not.
+// All matching ignores accent/case and respects word boundaries.
+const SPECIAL_LENGTHS={aura:31,familiareszoologicos:31,contatoespiritual:18};
+const LIST_CATEGORIES=[
+ {file:'animais',label:'animais',terms:['animal','animais','bicho','bichos','fauna','especies de animais']},
+ {file:'celebridades',label:'celebridades',terms:['celebridade','celebridades','famoso','famosos','famosa','famosas','pessoas famosas','pessoa famosa','personalidades','ator','atores','atriz','atrizes','artista','artistas','estrelas de hollywood']},
+ {file:'filmes',label:'filmes',terms:['filme','filmes','cinema','longa metragem','longas metragens','classicos do cinema']},
+ {file:'musicas',label:'músicas',terms:['musica','musicas','cancao','cancoes','hits','sucessos musicais','faixas']},
+ {file:'insetos',label:'insetos',terms:['inseto','insetos']},
+ {file:'cervejas',label:'cervejas',terms:['cerveja','cervejas','marcas de cerveja']},
+ {file:'hobbies',label:'hobbies',terms:['hobby','hobbies','passatempo','passatempos','atividades de lazer','tempo livre']},
+ {file:'perguntas',label:'perguntas',terms:['pergunta','perguntas','questao','questoes']},
+ {file:'pontosturisticos',label:'pontos turísticos',terms:['ponto turistico','pontos turisticos','atracoes turisticas','atracao turistica','monumento','monumentos','lugares famosos','lugares para visitar']},
+ {file:'aura',label:'auras',terms:['aura','auras','cores da aura','cores das auras']},
+ {file:'familiareszoologicos',label:'familiares zoológicos',terms:['familiar','familiares','familiares zoologicos','animais espirituais','animal espiritual','animal de poder','animais de poder']},
+ {file:'contatoespiritual',label:'perguntas para contato espiritual',terms:['espirito','espiritos','espiritual','espirituais','espiritualidade','contato espiritual','comunicacao espiritual']}
+];
+const LIST_REQUEST_INTENT=/\b(?:liste|listar|lista|listas|cite|citar|enumere|enumerar|mostre|mostrar|me de|me diga|me fale|diga|quero|gostaria|preciso|poderia|pode|quais|quantas|quantos|nomes|exemplos|sugira|sugestoes|relacione|faca uma lista)\b/;
+// “Por que os insetos voam?” is informational, not a list request.
+const EXPLANATORY_QUESTION=/^(?:por que|porque|como funciona|o que significa|o que e|qual e a causa|explique|me explique|quando|onde|quem e)\b/;
+function hasListIntent(plain){
+ if(EXPLANATORY_QUESTION.test(plain))return false;
+ return LIST_REQUEST_INTENT.test(plain);
 }
-function requestCandidates(words,quantity){
- const first=words[0];
- // These aliases keep the most natural short phrasings recognized.
- if(first==='aura'||first==='auras')return [{file:'aura',label:'auras'}];
- if(first==='familiares'||first==='familiar')return [{file:'familiareszoologicos',label:'familiares zoológicos'}];
- if(first==='pontos'&&words[1]?.startsWith('turistic'))return [{file:'pontosturisticos',label:'pontos turísticos'}];
- if(first==='perguntas'||first==='pergunta'){
-  const more=words.slice(1).join(' ');
-  // The 18-question collection is uniquely for spiritual contact, even if
-  // requested just as "18 perguntas" or "18 perguntas pra contato".
-  if(quantity===18 || /\b(?:contato|espiritual|espirituais|espiritismo)\b/.test(more)){
-   return [{file:'perguntascontatoespiritual',label:'perguntas para contato espiritual'}];
+function termIndex(plain,term){
+ const escaped=term.replace(/\s+/g,'\\s+');
+ const found=new RegExp('(?:^|[^a-z0-9])'+escaped+'(?=$|[^a-z0-9])').exec(plain);
+ return found?found.index:-1;
+}
+function matchCategory(plain){
+ const matched=[];
+ for(const category of LIST_CATEGORIES){
+  let index=Infinity;
+  let matchLen=0;
+  for(const raw of category.terms){
+   const term=normalise(raw);
+   const at=termIndex(plain,term);
+   if(at>=0&&(at<index||(at===index&&term.length>matchLen))){index=at;matchLen=term.length;}
   }
-  return [{file:'perguntas',label:'perguntas'}];
+  if(index!==Infinity)matched.push({...category,index,matchLen});
  }
- if(first==='musicas'||first==='musica')return [{file:'musicas',label:'músicas'}];
- if(first==='pontos')return [{file:'pontosturisticos',label:'pontos turísticos'}];
- if(first==='filme')return [{file:'filmes',label:'filmes'}];
- if(first==='animal')return [{file:'animais',label:'animais'}];
- if(first==='celebridade')return [{file:'celebridades',label:'celebridades'}];
- // Future lists can be added to /listas without registering their names.
- // Try longest category first, then shorter prefixes, to disregard modifiers.
- const candidates=[];
- for(let count=Math.min(words.length,5);count>=1;count--){
-  const segment=words.slice(0,count);
-  candidates.push({file:segment.join(''),label:segment.join(' ')});
-  if(count===1)candidates.push({file:segment[0],label:segment[0]});
+ if(!matched.length)return null;
+ // A specific spiritual request wins over the generic "perguntas" keyword.
+ const spiritual=matched.find(c=>c.file==='contatoespiritual');
+ const family=matched.find(c=>c.file==='familiareszoologicos');
+ const aura=matched.find(c=>c.file==='aura');
+ // "animal espiritual" is about zoo familiars, not contact with spirits.
+ if(family&&/\b(?:animal|animais)\s+(?:espiritual|espirituais|de poder)\b/.test(plain))return family;
+ if(spiritual)return spiritual;
+ if(family)return family;
+ if(aura)return aura;
+ // The word "contato" on its own is ambiguous; tie it to a question context.
+ if(/\bcontatos?\b/.test(plain)&&/\b(?:pergunta|perguntas|questoes|questao|comunicacao)\b/.test(plain)){
+  return LIST_CATEGORIES.find(c=>c.file==='contatoespiritual');
  }
- return candidates.filter((entry,index,array)=>array.findIndex(other=>other.file===entry.file)===index);
+ matched.sort((a,b)=>a.index-b.index||b.matchLen-a.matchLen);
+ return matched[0];
 }
 function parseRequest(question){
- const parsed=wordsFromRequest(question);
- if(!parsed)return null;
- const labels={aura:'auras',familiareszoologicos:'familiares zoológicos',perguntascontatoespiritual:'perguntas para contato espiritual'};
- const candidates=parsed.specialFile
-  ?[{file:parsed.specialFile,label:labels[parsed.specialFile]}]
-  :requestCandidates(parsed.words,parsed.quantity);
- return {...parsed,candidates};
+ const plain=normalise(question).trim();
+ if(!plain||!hasListIntent(plain))return null;
+ const category=matchCategory(plain);
+ if(!category)return null;
+ const countMatch=plain.match(/\b\d{1,5}\b/);
+ const explicitQuantity=countMatch?Number(countMatch[0]):null;
+ return {quantity:explicitQuantity,candidates:[{file:category.file,label:category.label}],plain};
 }
 async function fetchListFile(category){
  if(!category||!/^[a-z0-9]+$/.test(category))throw Error('categoria invalida');
- const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=25&ts='+Date.now(),{cache:'no-store'});
+ const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=26&ts='+Date.now(),{cache:'no-store'});
  if(!response.ok)throw Error('lista nao disponivel');
  const raw=await response.text();
  return raw.replace(/^\uFEFF/,'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
 }
 async function resolveList(request){
  if(!request)throw Error('pedido invalido');
- for(const candidate of request.candidates){
-  try{
-   const items=await fetchListFile(candidate.file);
-   const needed=SPECIAL_LENGTHS[candidate.file];
-   if(needed!==undefined && (items.length!==needed||request.quantity!==needed))throw Error('quantidade exata requerida');
-   if(!items.length||request.quantity>items.length)throw Error('quantidade indisponivel');
-   return {...candidate,items};
-  }catch(error){
-   // A found list with a mismatching quantity must fail, not silently
-   // select a different category or wrap the force around.
-   if(error.message!=='lista nao disponivel')throw error;
-  }
+ const candidate=request.candidates[0];
+ const items=await fetchListFile(candidate.file);
+ const special=SPECIAL_LENGTHS[candidate.file];
+ if(special!==undefined&&items.length!==special)throw Error('lista especial inconsistente');
+ const quantity=special??(request.quantity??items.length);
+ if(!Number.isInteger(quantity)||quantity<1||quantity>items.length)throw Error('quantidade indisponivel');
+ return {...candidate,items,quantity};
+}
+// A natural answer header, using the meaning of the recognized request.
+function introForRequest(request,resolved){
+ const q=resolved.quantity,plain=request.plain;
+ if(resolved.file==='contatoespiritual'){
+  if(/\b(?:falar|conversar|comunicar|dialogar)\b.*\b(?:espirito|espiritos)\b/.test(plain))
+   return 'Aqui estão as '+q+' perguntas para falar com '+(plain.includes('espiritos')?'espíritos':'espírito')+':';
+  return 'Aqui estão as '+q+' perguntas para contato espiritual:';
  }
- throw Error('categoria indisponivel');
+ if(resolved.file==='aura')return 'Aqui estão as '+q+' cores das auras e seus significados:';
+ if(resolved.file==='familiareszoologicos')return 'Aqui estão os '+q+' familiares zoológicos:';
+ return 'Aqui estão '+q+' '+resolved.label+':';
 }
 function arrange(items,position,quantity,category){
  if(!Number.isInteger(position)||position<1||position>quantity)throw Error('codigo fora da lista');
@@ -836,15 +863,16 @@ function createAssistant(message){
 function cancelGeneration(){generationToken++;generating=false;clearTimeout(activeTimer);activeTimer=null;}
 function resetNewChat(){
  followTail=false;
- cancelGeneration();clearConfirmation();digits=[];visibleText='';selectedAnswerList=[];currentPosition=1;currentForce='';forceEmojiSpan=null;cancelReveal();
+ cancelGeneration();clearConfirmation();secretMode=false;updatePlaceholder();digits=[];visibleText='';selectedAnswerList=[];currentPosition=1;currentForce='';forceEmojiSpan=null;cancelReveal();
  prompt.value='';messages.replaceChildren();app.classList.remove('has-messages');
  scroller.scrollTop=0;updateComposer();closeOverlays();updateJumpButton();
  // Verifica atualização sem redirecionar automaticamente, o menu oferece a opção.
  checkForUpdatedVersion();
 }
 async function sendRequest(){
- if(generating||digits.length!==2||!prompt.value.trim())return;
- const secretPosition=forcedPosition();
+ if(generating||!prompt.value.trim()||(secretMode&&digits.length!==2))return;
+ const wasSecret=secretMode;
+ const secretPosition=wasSecret?forcedPosition():null;
  const sentText=prompt.value.trim();
  const request=parseRequest(sentText);
  const quantity=request?.quantity??0;
@@ -859,7 +887,7 @@ async function sendRequest(){
  followTail=false;refreshComposerMeasure();
  responseIntro=request?'Aqui estão '+quantity+' '+request.candidates[0].label+':':'Confira a solicitação:';
  const reply=createAssistant(sentText);
- prompt.value='';visibleText='';digits=[];updateComposer();
+ prompt.value='';visibleText='';digits=[];setSecretMode(false);updateComposer();
  // Show the user bubble and start the answer at the top of the transcript.
  // New content flows beneath the stationary viewport and raises the jump button.
  scroller.scrollTop=0;
@@ -872,9 +900,11 @@ async function sendRequest(){
    const resolved=await resolveList(request);
    await thinkingFinished;
    if(token!==generationToken)return;
-   currentForce=resolved.items[0];
-   selectedAnswerList=arrange(resolved.items,currentPosition,quantity,resolved.file);
-   responseIntro='Aqui estão '+quantity+' '+resolved.label+':';
+   const actualQuantity=resolved.quantity;
+   if(wasSecret && (secretPosition<1 || secretPosition>actualQuantity))throw Error('codigo fora da lista');
+   currentForce=wasSecret?resolved.items[0]:'';
+   selectedAnswerList=wasSecret?arrange(resolved.items,currentPosition,actualQuantity,resolved.file):resolved.items.slice(0,actualQuantity);
+   responseIntro=introForRequest(request,resolved);
    reply.intro.textContent=responseIntro;
    reply.thinking.remove();
    reply.intro.classList.add('visible');
@@ -941,13 +971,13 @@ function armEmojiReveal(){
  if(editing||generating||revealPending||!app.classList.contains('has-messages'))return;
  if(!forceEmojiSpan||!forceEmojiSpan.isConnected||forceEmojiSpan.classList.contains('hidden'))return;
  revealPending=true;
- prompt.placeholder=ARMED_PLACEHOLDER;
+ updatePlaceholder();
  revealTimer=setTimeout(()=>{
    revealTimer=null;
    revealPending=false;
    // visibility:hidden leaves the emoji's width, avoiding layout shifts.
    if(forceEmojiSpan?.isConnected)forceEmojiSpan.classList.add('hidden');
-   prompt.placeholder=NORMAL_PLACEHOLDER;
+   updatePlaceholder();
  },5000);
 }
 const micVoiceHitZone=document.querySelector('.composer-buttons');
@@ -1007,8 +1037,7 @@ const EDIT_SECTIONS={
   ['prompt','Texto Perguntar ao ChatGPT'],
   ['microphone','Microfone'],
   ['voice','Botão de voz'],
-  ['send','Botão enviar'],
-  ['footnote','Aviso inferior']
+  ['send','Botão enviar']
  ]
 };
 const EDIT_SECTION_BY_KEY=new Map(Object.entries(EDIT_SECTIONS).flatMap(([section,items])=>items.map(([key])=>[key,section])));
@@ -1027,7 +1056,7 @@ const editableNodes=[...document.querySelectorAll('[data-edit-key]')];
 const editableKeys=new Set(editableNodes.map(node=>node.dataset.editKey));
 const RESPONSE_ACTIONS_KEY='response-actions';
 editableKeys.add(RESPONSE_ACTIONS_KEY);
-const COMPOSER_KEYS=new Set(['composer-region','composer','plus','prompt','microphone','voice','send','footnote','jump']);
+const COMPOSER_KEYS=new Set(['composer-region','composer','plus','prompt','microphone','voice','send','jump']);
 function cleanOffsets(input,allowed){
  if(!input||typeof input!=='object'||Array.isArray(input))return {};
  return Object.fromEntries(Object.entries(input).filter(([k,v])=>allowed.has(k)&&Number.isInteger(v)&&Math.abs(v)<=150));
@@ -1390,7 +1419,7 @@ function makeLayoutBackup(){
  return {
   format:LAYOUT_BACKUP_FORMAT,
   schemaVersion:LAYOUT_BACKUP_SCHEMA,
-  appVersion:25,
+  appVersion:26,
   exportedAt:new Date().toISOString(),
   settings:cloneProfiles(editing?draftOffsets:savedOffsets)
  };
@@ -1546,7 +1575,7 @@ refreshComposerMeasure();
 // v21: atualização discreta no PRIMEIRO item das conversas recentes.
 // Nenhum redirecionamento automático, nem durante o force nem numa conversa aberta.
 // A consulta bypassa cache HTTP e volta a ser feita a cada abertura do menu.
-const GPT_FORCE_VERSION=25;
+const GPT_FORCE_VERSION=26;
 const DEFAULT_RECENT_TITLE='Quando usar por que e porque';
 let latestAvailableVersion=null;
 let updateCheckSequence=0;
