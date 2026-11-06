@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ChatGPT">
-<link rel="manifest" href="manifest.webmanifest?v=36">
-<link rel="apple-touch-icon" href="icon-192.png?v=36">
+<link rel="manifest" href="manifest.webmanifest?v=37">
+<link rel="apple-touch-icon" href="icon-192.png?v=37">
 <title>ChatGPT</title>
 <style>
 :root{color-scheme:dark;--bg:#000;--fg:#f5f5f5;--muted:#9b9b9d;--surface:#222224;--surface2:#2d2d30;--outline:#38383b;--header-h:60px;--app-height:100dvh}
@@ -40,6 +40,8 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
 .header-icon svg{width:23px;height:23px}
 .model-title{justify-self:center;display:flex;align-items:center;gap:5px;font-size:18px;font-weight:610;letter-spacing:-.4px;line-height:25px;padding:8px 6px}
 .model-title svg{width:14px;height:14px;color:#aaa}
+/* v37: only the existing chevron becomes invisible during the cue, without reflow. */
+.model-title.reveal-cue-hidden svg{visibility:hidden}
 .conversation{min-height:0;flex:1;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .conversation::-webkit-scrollbar{display:none}
 .welcome{min-height:100%;display:flex;align-items:center;justify-content:center;padding:45px 32px 70px;flex-direction:column;gap:16px;transition:opacity .2s}
@@ -54,16 +56,14 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
 .assistant-message{padding:0 1px 2px 2px;color:#ececec;font-size:var(--conversation-font-size,16px);line-height:1.57;letter-spacing:.06px}
 .answer-intro{margin:0 0 12px;opacity:0;transition:opacity .22s}
 .answer-intro.visible{opacity:1}
-/* v36: every list number is a stable, explicit two-part marker.
-   The number and the dot never change layout, including on iOS Safari.
-   Only the dot's visibility is changed to signal the secret timer. */
+/* v37: all list numbers and dots keep the same fixed layout.
+   The only reveal indicator is the header chevron, never the list punctuation. */
 .answer-list{margin:0;padding-left:27px;list-style:none}
 .answer-list li{padding-left:3px;position:relative;margin:0 0 var(--list-item-spacing,7px);min-height:20px;overflow-wrap:break-word;animation:appear .19s ease-out both}
 .answer-list li::marker{content:none}
 .answer-list .list-number{position:absolute;right:calc(100% + 12px);top:0;white-space:nowrap;color:#e5e5e5;font-variant-numeric:tabular-nums;line-height:inherit;pointer-events:none;-webkit-user-select:none;user-select:none}
 @media(max-width:350px){.answer-list .list-number{right:calc(100% + 6px)}}
 .answer-list .list-dot{visibility:visible}
-.answer-list li.reveal-dot-hidden .list-dot{visibility:hidden}
 .force-emoji{opacity:1}
 .force-emoji.hidden{visibility:hidden;opacity:0}
 @keyframes appear{from{opacity:.15;transform:translateY(3px)}to{opacity:1;transform:none}}
@@ -427,7 +427,7 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
   </header>
   <main class="conversation" id="conversation" aria-label="Conversa">
     <section class="welcome" id="welcome">
-      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=36" alt="" aria-hidden="true">
+      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=37" alt="" aria-hidden="true">
       <h1 class="welcome-title" data-edit-key="welcome-title">Como posso ajudar?</h1>
     </section>
     <section class="messages" id="messages" aria-live="off"></section>
@@ -590,6 +590,7 @@ jumpButton.addEventListener('click',()=>{
 });
 const messages=document.getElementById('messages');
 const menuButton=document.getElementById('menuButton');
+const modelButton=document.getElementById('modelButton');
 const sidebar=document.getElementById('sidePanel');
 const sidebarRecent=document.getElementById('sidebarRecent');
 const backdrop=document.getElementById('backdrop');
@@ -612,14 +613,13 @@ let revealTimer=null;
 let revealFadeTimer=null;
 let revealFadeAnimation=null;
 let revealPending=false;
-let revealMarkerItem=null;
 let revealEmojiTarget=null;
 const NORMAL_PLACEHOLDER='Perguntar ao ChatGPT';
 const SECRET_PLACEHOLDER='Perguntar ao ChatGPT.';
 let secretMode=false;
 function updatePlaceholder(){
  // The only period in the placeholder indicates SECRET INPUT MODE.
- // The emoji reveal status is signalled by the period of the numbered item.
+ // The emoji reveal status is signalled only by the header chevron.
  prompt.placeholder=secretMode?SECRET_PLACEHOLDER:NORMAL_PLACEHOLDER;
 }
 function setSecretMode(enabled){
@@ -667,13 +667,11 @@ function cancelReveal(){
  if(revealFadeAnimation){revealFadeAnimation.cancel();revealFadeAnimation=null;}
  revealTimer=null;
  revealFadeTimer=null;
- // Aborted reveals must not leave a list item missing its period.
- if(revealMarkerItem)revealMarkerItem.classList.remove('reveal-dot-hidden');
+ modelButton.classList.remove('reveal-cue-hidden');
  if(revealEmojiTarget && !revealEmojiTarget.classList.contains('hidden')){
   revealEmojiTarget.classList.remove('fading');
   revealEmojiTarget.style.opacity='';revealEmojiTarget.style.transition='';
  }
- revealMarkerItem=null;
  revealEmojiTarget=null;
  revealPending=false;
  updatePlaceholder();
@@ -697,7 +695,7 @@ function showConfirmation(){
   confirmationTimer=setTimeout(()=>{
     secretConfirmation.classList.remove('visible');
     confirmationTimer=null;
-  },4000);
+  },3000);
 }
 // V18 mantém o campo único da v17: com corretor nativo habilitado desde o foco.
 // O código secreto é armazenado apenas em `digits`, separado do texto visível.
@@ -899,7 +897,7 @@ function parseRequest(question){
 }
 async function fetchListFile(category){
  if(!category||!/^[a-z0-9]+$/.test(category))throw Error('categoria invalida');
- const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=36&ts='+Date.now(),{cache:'no-store'});
+ const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=37&ts='+Date.now(),{cache:'no-store'});
  if(!response.ok)throw Error('lista nao disponivel');
  const raw=await response.text();
  return raw.replace(/^\uFEFF/,'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -1117,11 +1115,10 @@ document.getElementById('modelButton').addEventListener('click',()=>{sidebar.cla
 document.getElementById('modelClose').addEventListener('click',closeOverlays);
 document.getElementById('addButton').addEventListener('click',()=>{if(didLongPress){didLongPress=false;return;}if(!editing){showToast('Conversa por texto');prompt.focus();}});
 scroller.addEventListener('touchstart',()=>{modelPopover.classList.remove('open');},{passive:true});
-// v32: the reveal cue lives in the punctuation of the FORCED list item.
-// At t=0 hide its period; at t=5 restore the period; over t=5..6 smoothly
-// fade the emoji's opacity without moving the surrounding text.
-// The placeholder period is reserved exclusively for secret input mode.
-// The entire microphone + voice area remains the original reveal target.
+// v37: the unobtrusive reveal cue is ONLY the ChatGPT header chevron.
+// t=0: hide the chevron; t=5s: restore it; t=6s: begin a smooth
+// one-second emoji fade; t=7s: emoji is fully invisible.
+// No list markers, header dimensions or question-placeholder indicators change.
 function armEmojiReveal(){
  if(editing||generating||revealPending||!app.classList.contains('has-messages'))return;
  if(!forceEmojiSpan||!forceEmojiSpan.isConnected||forceEmojiSpan.classList.contains('hidden'))return;
@@ -1129,33 +1126,34 @@ function armEmojiReveal(){
  const item=emoji.closest('.answer-list li');
  if(!item)return;
  revealPending=true;
- revealMarkerItem=item;
  revealEmojiTarget=emoji;
- item.classList.add('reveal-dot-hidden');
+ modelButton.classList.add('reveal-cue-hidden');
  revealTimer=setTimeout(()=>{
   revealTimer=null;
+  // Restore the chevron before the 1s pause, even if the item vanished.
+  modelButton.classList.remove('reveal-cue-hidden');
   if(!emoji.isConnected||!item.isConnected){cancelReveal();return;}
-  // At exactly 5s the dot returns, then the emoji visibly fades over 1s.
-  item.classList.remove('reveal-dot-hidden');
-  // Web Animations provides an explicit timeline instead of a Safari CSS
-  // transition that might jump to zero after a hidden style/layout change.
-  if(typeof emoji.animate==='function'){
-   revealFadeAnimation=emoji.animate([{opacity:1},{opacity:0}],{
-    duration:1000,easing:'linear',fill:'forwards'
-   });
-  }else{
-   emoji.style.transition='opacity 1000ms linear';
-   void emoji.offsetWidth;
-   emoji.style.opacity='0';
-  }
-  revealFadeTimer=setTimeout(()=>{
-   revealFadeTimer=null;
-   emoji.classList.add('hidden');
-   if(revealFadeAnimation){revealFadeAnimation.cancel();revealFadeAnimation=null;}
-   emoji.style.opacity='';emoji.style.transition='';
-   revealPending=false;
-   revealMarkerItem=null;
-   revealEmojiTarget=null;
+  revealTimer=setTimeout(()=>{
+   revealTimer=null;
+   if(!emoji.isConnected||!item.isConnected){cancelReveal();return;}
+   // Start fade at 6s, not at 5s. Keep opacity 100% for the full pause.
+   if(typeof emoji.animate==='function'){
+    revealFadeAnimation=emoji.animate([{opacity:1},{opacity:0}],{
+     duration:1000,easing:'linear',fill:'forwards'
+    });
+   }else{
+    emoji.style.transition='opacity 1000ms linear';
+    void emoji.offsetWidth;
+    emoji.style.opacity='0';
+   }
+   revealFadeTimer=setTimeout(()=>{
+    revealFadeTimer=null;
+    emoji.classList.add('hidden');
+    if(revealFadeAnimation){revealFadeAnimation.cancel();revealFadeAnimation=null;}
+    emoji.style.opacity='';emoji.style.transition='';
+    revealPending=false;
+    revealEmojiTarget=null;
+   },1000);
   },1000);
  },5000);
 }
@@ -1843,7 +1841,7 @@ function makeLayoutBackup(){
  return {
   format:LAYOUT_BACKUP_FORMAT,
   schemaVersion:LAYOUT_BACKUP_SCHEMA,
-  appVersion:36,
+  appVersion:37,
   exportedAt:new Date().toISOString(),
   settings:cloneProfiles(editing?draftOffsets:savedOffsets)
  };
@@ -2041,7 +2039,7 @@ refreshComposerMeasure();
 // v21: atualização discreta no PRIMEIRO item das conversas recentes.
 // Nenhum redirecionamento automático, nem durante o force nem numa conversa aberta.
 // A consulta bypassa cache HTTP e volta a ser feita a cada abertura do menu.
-const GPT_FORCE_VERSION=36;
+const GPT_FORCE_VERSION=37;
 const DEFAULT_RECENT_TITLE='Quando usar por que e porque';
 let latestAvailableVersion=null;
 let updateCheckSequence=0;
