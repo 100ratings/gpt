@@ -1,32 +1,27 @@
-# GPT Force v33 | Marcador confiável e degradê inferior contínuo
+# GPT Force v34 | Bloqueio do menu Colar/Preenchimento Automático no campo vazio
 
-## Marcador visual do truque, prioridade
-- Durante a contagem, somente o ponto da posição forçada desaparece, por exemplo `23 Joaninha 🐞`
-- A implementação agora desativa o marcador nativo desse único item durante a contagem e desenha o número sem ponto usando um pseudo-elemento normal, mais compatível com Safari que alterar o conteúdo de `::marker` isoladamente
-- O número permanece visível e os outros números preservam seus pontos
-- Após 5 segundos, o marcador normal volta a aparecer (`23. Joaninha 🐞`)
-- Durante o sexto segundo, o emoji perde opacidade de maneira gradual até desaparecer, sem deslocar o texto
-- Cancelar a revelação ou abrir uma nova conversa restaura o marcador, sem temporizadores atrasados
+## Ajuste no iPhone
+- Quando o campo de digitação já está focado, com o cursor piscando e ainda sem texto, o segundo toque não deve abrir o menu contextual de edição do iOS
+- Aplicados `-webkit-touch-callout:none`, bloqueio de `contextmenu` e cancelamento do gesto nativo apenas quando o textarea está vazio e já focado
+- O primeiro toque continua focando o campo normalmente
+- O toque no espaço vazio à direita continua podendo ativar o modo secreto
+- O campo preenchido preserva os toques para reposicionar o cursor e editar texto
+- Autocorreção nativa, input normal e `Li` do force foram preservados
+- A supressão total de menus controlados pelo sistema não pode ser garantida sem confirmação em Safari/PWA físico
 
-## Degradê inferior
-- Reativado um degradê progressivo suave junto à barra inferior, com início discreto e escurecimento contínuo na região de rolagem
-- A máscara inferior termina em transparência total antes da borda, para que um item que ultrapasse a área visível não apareça truncado
-- A altura, a posição e a intensidade do degradê continuam ajustáveis no editor, com novos padrões iniciais para configurações sem valores salvos
-- **O topo e o degradê superior estão rigorosamente iguais à v32**, verificados por comparação literal
+## Preservações
+- Revelação da joaninha, sinal no marcador, temporizador de 6 segundos e fade inferior idênticos à v33
+- Peek de 3 segundos, modos normal/secreto, editor, backups, listas e landscape mantidos
+- Cabeçalho e degradê superior confirmados literalmente iguais aos da v33
 
-## Funcionalidades preservadas
-- Modos normal/secreto e código OP=23
-- Peek por 3 segundos, com todas as configurações de tamanho, posição e opacidade preservadas
-- Listas, temporizadores, editor, modo da seta com teclado, backups e orientação de tela
-- O ponto do placeholder continua reservado somente ao modo secreto
+## Verificação
+- Sintaxe JavaScript aprovada com Node
+- Teste de toque em Chromium com emulação móvel confirmou que o segundo toque no campo vazio focado é cancelado, sem perder o foco
+- O gatilho secreto `OP` ainda mostra `Li` e o indicador do modo secreto continua funcionando
+- Toques sobre campo preenchido seguem nativos, sem prevenção do gesto
+- Nenhum erro JavaScript no teste automatizado
+- Safari/PWA iPhone real requer avaliação do resultado do menu contextual
 
-## Validação
-- Testes automatizados no Chromium: posição OP=23, número sem ponto durante a contagem, ponto restaurado aos 5 segundos, fade do emoji até os 6 segundos, cancelamento e nova conversa
-- Comprovação visual por captura de tela do item 23 sem ponto
-- Sintaxe JavaScript validada
-- Teste físico no Safari do iPhone ainda é necessário para confirmar o comportamento final no aparelho
-
-## Publicação
-- Publicação direta no repositório 100ratings/gpt
-- Cache busting v33 no HTML, manifesto e carregamento das listas
-- version.json atualizado por último para liberar a atualização manual
+## Atualização
+- Cache Busting atualizado para v34
+- `version.json` liberado apenas após publicação completa
