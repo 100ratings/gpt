@@ -1,21 +1,20 @@
-# GPT Force v18 | Área de toque ampliada
+# GPT Force v19 | Degradê superior espelhado
 
-Baseada diretamente na v17 aprovada no iPhone, com as 12 listas e seus recursos mantidos
+Baseada diretamente na versão 18 aprovada no iPhone
 
-## Mudança pontual
+## Atualização visual
+- Degradê superior com os mesmos seis pontos de opacidade do degradê inferior, mas espelhado
+- Degradê superior ancorado no cabeçalho, sem bloquear os botões e sem interferir na rolagem
+- Controles independentes para altura e posição do degradê superior no editor por pressionamento prolongado do botão +
+- Altura, posição e demais configurações do degradê inferior preservadas
 
-- Tanto o microfone quanto o botão à direita armam a revelação, usando exatamente a mesma função
-- A faixa inteira dos dois ícones também reage ao toque, inclusive o espaço entre eles
-- A faixa de toque foi ampliada de aproximadamente 67 × 36 para 83 × 50 pixels CSS, sem mover visualmente os ícones
-- O toque é ignorado durante geração, edição, temporizador em andamento, listas sem emoji, ou depois da revelação
-- Quando a seta de Enviar aparece, a faixa não interfere no envio da pergunta
-- Após o toque válido, surge o ponto em “Perguntar ao ChatGPT.” e, cinco segundos depois, o emoji é ocultado sem deslocar o texto
-- A v17, incluindo o código secreto e o corretor nativo, não foi alterada fora desses controles
+## Cache Busting
+- `version.json` contém o número da versão publicada e deve ser atualizado **por último**
+- Ao abrir ou voltar ao app, uma verificação sem cache procura uma nova versão, sem recarregar durante o uso de uma lista ou a digitação
+- Os parâmetros de versão dos recursos, manifesto, ícones e listas foram incrementados para 19
+- Para atualizar uma instalação ainda na versão 18, pode ser necessário fazer uma atualização manual ou visitar `index.html?v=19` uma vez, pois a v18 ainda não tinha essa verificação
 
-## Publicação
-
-Copie os arquivos para a raiz do repositório GitHub Pages, mantendo a pasta `listas`, e recarregue o aplicativo
-
-## Verificação
-
-Testado em Chromium com emulação de iPhone 12 Pro Max, incluindo acionamento pelos dois ícones e pelo espaço entre eles, proteção contra vários toques, preservação da rolagem, botão Enviar e testes de regressão da v17. O toque físico no Safari iOS ainda deve ser validado no iPhone
+## Preservação
+- Motor de force, corretor nativo, botão de voz, temporizador, lista de categorias e ajustes salvos preservados
+- Testado em Chromium com entrada OP=23 e QQ=100, além de parâmetros independentes do editor
+- Testar visualmente no Safari do iPhone
