@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ChatGPT">
+<link rel="manifest" href="manifest.webmanifest?v=18">
+<link rel="apple-touch-icon" href="icon-192.png?v=18">
+<title>ChatGPT</title>
+<style>
+:root{color-scheme:dark;--bg:#000;--fg:#f5f5f5;--muted:#9b9b9d;--surface:#222224;--surface2:#2d2d30;--outline:#38383b;--header-h:60px;--app-height:100dvh}
+*{box-sizing:border-box}
+html,body{height:100%;width:100%;margin:0;background:var(--bg);overscroll-behavior:none;overflow:hidden}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;font-size:16px;color:var(--fg);-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+button,textarea{font:inherit}
+button{border:0;color:inherit;background:none;cursor:pointer;touch-action:manipulation}
+button:focus-visible,textarea:focus-visible{outline:2px solid #8585fc;outline-offset:2px}
+button:active{opacity:.67}
+svg{display:block}
+/* Anchor the whole app to the visual (keyboard-unobscured) viewport.
+   iOS Safari can scroll the visual viewport inside the layout viewport on focus. */
+.app{width:var(--viewport-width,100%);height:var(--app-height);min-height:0;top:var(--viewport-top,0px);left:var(--viewport-left,0px);background:var(--bg);overflow:hidden;position:fixed;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.app.keyboard-open{padding-bottom:0}
+.app-header{height:var(--header-h);min-height:var(--header-h);padding:8px 17px 6px;display:grid;grid-template-columns:42px 1fr 42px;align-items:center;position:relative;z-index:3;background:#000}
+.header-icon{width:40px;height:40px;display:grid;place-items:center;border-radius:40px}
+.header-icon svg{width:23px;height:23px}
+.model-title{justify-self:center;display:flex;align-items:center;gap:5px;font-size:18px;font-weight:610;letter-spacing:-.4px;line-height:25px;padding:8px 6px}
+.model-title svg{width:14px;height:14px;color:#aaa}
+.conversation{min-height:0;flex:1;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.conversation::-webkit-scrollbar{display:none}
+.welcome{min-height:100%;display:flex;align-items:center;justify-content:center;padding:45px 32px 70px;flex-direction:column;gap:16px;transition:opacity .2s}
+.welcome-mark{width:42px;height:42px;color:#eee}
+.welcome-title{font-size:27px;font-weight:600;line-height:1.25;letter-spacing:-.8px;text-align:center;margin:0}
+.welcome-subtitle{font-size:14px;color:#858588;text-align:center;margin-top:-3px}
+.messages{display:none;max-width:770px;margin:0 auto;padding:11px 18px 35px}
+.app.has-messages .welcome{display:none}
+.app.has-messages .messages{display:block}
+.message-user{display:flex;justify-content:flex-end;margin:16px 0 30px 38px}
+.message-user .bubble{background:#303033;border-radius:21px;padding:12px 16px;color:#f6f6f6;font-size:var(--conversation-font-size,16px);line-height:1.43;white-space:pre-wrap;max-width:90%;overflow-wrap:anywhere}
+.assistant-message{padding:0 1px 2px 2px;color:#ececec;font-size:var(--conversation-font-size,16px);line-height:1.57;letter-spacing:.06px}
+.answer-intro{margin:0 0 12px;opacity:0;transition:opacity .22s}
+.answer-intro.visible{opacity:1}
+.answer-list{margin:0;padding-left:27px;list-style:decimal outside}
+.answer-list li{padding-left:3px;margin:0 0 var(--list-item-spacing,7px);min-height:20px;overflow-wrap:break-word;animation:appear .19s ease-out both}
+.answer-list li::marker{font-variant-numeric:tabular-nums;color:#e5e5e5}
+@keyframes appear{from{opacity:.15;transform:translateY(3px)}to{opacity:1;transform:none}}
+.thinking{display:flex;align-items:center;height:28px;margin-top:1px;color:#bcbcc0;font-size:var(--conversation-font-size,16px);line-height:1.45}
+/* The five buttons share one live presentation rule set. */
+.response-actions{align-items:center;gap:0;color:#a4a4a6}
+/* Flex gap cannot be negative; adjacent margins can, allowing closer icons. */
+.response-actions .answer-action + .answer-action{margin-left:var(--actions-gap,9px)}
+.response-actions{display:none;margin:16px 0 15px}
+.response-actions.visible{display:flex}
+.response-actions .answer-action,.actions-preview-row .answer-action{
+ flex:0 0 auto;
+ height:max(33px,calc(var(--icon-size,19px) + 10px));
+ width:max(34px,calc(var(--icon-size,19px) + 12px));
+ display:grid;place-items:center;border-radius:11px;padding:0;
+}
+.response-actions .answer-action svg,.actions-preview-row .answer-action svg{
+ width:var(--icon-size,19px);height:var(--icon-size,19px);
+}
+.response-actions .feedback-action,.actions-preview-row .feedback-action{
+ width:max(42px,calc(var(--icon-size,18px) * 2 + 6px));
+ display:flex;align-items:center;justify-content:center;gap:1px;
+}
+.response-actions .feedback-action svg,.actions-preview-row .feedback-action svg{
+ width:var(--icon-size,18px);height:var(--icon-size,18px);
+ flex:0 0 var(--icon-size,18px);
+}
+.response-actions .visual-only{cursor:default}
+.response-actions[data-edit-key]{transform:translate(var(--edit-x,0px),var(--edit-y,0px))}
+.actions-preview-panel[hidden]{display:none!important}
+.actions-preview-panel{display:flex;flex-direction:column;gap:7px}
+.actions-preview-panel .preview-title{color:#bcbcc1;font-size:11px}
+.actions-preview-stage{
+ min-height:100px;display:flex;align-items:center;justify-content:center;
+ border:1px dashed #55555b;border-radius:12px;background:#202023;
+ overflow:hidden;position:relative;
+}
+.actions-preview-row{
+ display:flex;position:relative;flex:0 0 auto;
+ transform:translate(var(--edit-x,0px),var(--edit-y,0px));
+}
+.actions-preview-row .answer-action{cursor:default}
+
+.composer-region{padding:6px 12px 10px;flex:0 0 auto;background:#000;position:relative;z-index:4}
+.composer{background:var(--surface);border-radius:26px;display:flex;flex-direction:column;min-height:53px;box-shadow:inset 0 0 0 .6px #333;transition:background .18s}
+.composer-inner{display:flex;align-items:flex-end;gap:4px;padding:7px 8px 7px 9px;min-height:53px}
+.add-button{width:36px;height:36px;flex-shrink:0;border-radius:50%;display:grid;place-items:center;color:#ededee;margin-bottom:1px}
+.add-button svg{width:25px;height:25px}
+.prompt{border:0;border-radius:0;resize:none;outline:0;box-shadow:none;background:transparent;color:#f8f8f9;-webkit-appearance:none;appearance:none;min-width:0;flex:1;font-size:16px;line-height:22px;min-height:32px;max-height:122px;padding:6px 3px 4px;margin:0;overflow-y:auto;letter-spacing:0;-webkit-user-select:text;user-select:text;caret-color:white}
+.prompt::placeholder{color:#949498;opacity:1}
+.prompt:focus{outline:0}
+.composer-buttons{
+ display:flex;align-items:center;gap:3px;min-height:36px;flex-shrink:0;
+ /* Expand the REAL hit surface while retaining the icons and text in place. */
+ margin:-7px -9px -6px -7px;padding:7px 9px 7px 7px;
+ touch-action:manipulation;cursor:pointer;position:relative;z-index:1;
+}
+.decorative-mic{width:32px;height:36px;display:grid;place-items:center;color:#ddd;padding:0;pointer-events:auto;touch-action:manipulation}
+.decorative-mic svg{height:19px;width:19px}
+.send{width:34px;height:34px;display:grid;place-items:center;border-radius:50%;background:#fff;color:#050505;opacity:1;transition:transform .15s,opacity .15s}
+.send[disabled]{background:#3b3b3d;color:#a3a3a5;opacity:1;cursor:default}
+.send svg{width:19px;height:19px}
+.voice-wave{width:32px;height:32px;display:grid;place-items:center;color:white;pointer-events:none}
+.voice-wave svg{width:25px;height:25px}
+.app.ready-to-send .voice-wave{display:none}
+.app:not(.ready-to-send) .send{display:none}
+.footer-caption{font-size:10px;line-height:14px;color:#707074;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:7px auto 0;padding:0 4px}
+.modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.52);z-index:10;display:none}
+.modal-backdrop.open{display:block}
+.side-panel{position:absolute;z-index:11;left:0;top:0;bottom:0;width:min(86vw,350px);transform:translateX(-101%);transition:transform .24s ease;background:#1d1d1f;padding:calc(env(safe-area-inset-top,0px) + 16px) 18px 30px;display:flex;flex-direction:column;gap:12px;box-shadow:20px 0 45px rgba(0,0,0,.22)}
+.side-panel.open{transform:translateX(0)}
+.side-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
+.side-top strong{font-size:22px;letter-spacing:-.7px}
+.side-close{font-size:27px;padding:4px 10px;color:#ddd}
+.side-row{display:flex;align-items:center;gap:12px;font-size:16px;text-align:left;border-radius:11px;padding:12px 10px;min-height:43px}
+.side-row svg{width:20px;height:20px}
+.side-caption{margin:15px 10px 2px;color:#97979c;font-size:12px;font-weight:600}
+.side-row.recent{background:#2e2e32}
+.popover{position:absolute;z-index:11;top:calc(env(safe-area-inset-top,0px) + 60px);left:50%;transform:translateX(-50%);width:230px;border-radius:18px;background:#29292b;box-shadow:0 12px 36px rgba(0,0,0,.5);padding:8px;display:none}
+.popover.open{display:block}
+.popover button{width:100%;display:flex;align-items:center;justify-content:space-between;text-align:left;padding:12px;border-radius:10px;font-size:15px}
+.popover button:active{background:#424244}
+.toast{position:absolute;z-index:12;bottom:100px;left:50%;transform:translateX(-50%);background:#38383d;color:#fff;font-size:13px;white-space:nowrap;padding:9px 14px;border-radius:100px;box-shadow:0 6px 20px #0009;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.visible{opacity:1}
+@media(max-width:360px){.app-header{padding-left:11px;padding-right:11px}.messages{padding-left:14px;padding-right:14px}.welcome-title{font-size:24px}.message-user{margin-left:19px}.composer-region{padding-left:8px;padding-right:8px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001s!important;transition-duration:.001s!important}}
+
+
+/* Confirmation is overlaid after the footnote, never changing its height/centering */
+.footer-caption{position:relative;width:max-content;max-width:100%;overflow:visible;text-overflow:clip}
+.secret-confirmation{position:absolute;left:calc(100% + 4px);top:0;opacity:0;white-space:nowrap;font:inherit;color:inherit;pointer-events:none;transition:opacity .12s linear}
+.secret-confirmation.visible{opacity:1}
+
+/* Adjustable vertical alignment, initially zero so v1 stays unchanged */
+[data-edit-key]{transform:translateY(var(--edit-y,0px))}
+.welcome-mark{object-fit:contain}
+.voice-wave{pointer-events:auto;touch-action:manipulation;padding:0}
+.force-emoji.hidden{visibility:hidden}
+.add-button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
+.edit-panel[hidden]{display:none!important}
+.edit-panel{position:absolute;top:calc(env(safe-area-inset-top,0px) + 64px);left:10px;right:10px;z-index:30;max-width:450px;margin:auto;background:#29292c;border:1px solid #48484b;border-radius:17px;box-shadow:0 12px 42px #000b;padding:13px;display:flex;flex-direction:column;gap:11px}
+.edit-panel-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.edit-panel-top strong{font-size:15px;font-weight:650}
+.edit-panel .edit-save{background:#f1f1f2;color:#101012;border-radius:12px;padding:8px 14px;font-size:14px;font-weight:650}
+.edit-panel-controls{display:flex;align-items:center;gap:7px}
+.edit-panel select{flex:1;min-width:0;background:#1b1b1d;color:#fff;border:1px solid #57575b;border-radius:9px;padding:10px 6px;font-size:14px;appearance:auto}
+.edit-panel .edit-arrow{border:1px solid #59595d;background:#3c3c3f;border-radius:9px;min-width:41px;height:40px;font-size:20px;font-weight:650}
+.edit-panel-bottom{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#bcbcc1;font-size:12px}
+.edit-panel .edit-reset{padding:6px 8px;text-decoration:underline;font-size:12px;color:#bcbcc1}
+.edit-horizontal[hidden]{display:none!important}
+.edit-horizontal{display:flex;align-items:center;gap:8px;color:#c7c7cb;font-size:12px}
+.edit-horizontal .edit-arrow{flex:0 0 45px}
+.edit-horizontal .edit-axis{flex:1}
+.reset-confirm[hidden]{display:none!important}
+.reset-confirm{position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.72)}
+.reset-card{background:#29292c;border:1px solid #56565a;border-radius:18px;width:min(100%,340px);padding:20px 18px 16px;box-shadow:0 14px 45px #000b}
+.reset-card strong{display:block;font-size:17px;line-height:1.3;margin-bottom:8px}
+.reset-card p{margin:0;color:#bcbcc1;font-size:13px;line-height:1.45}
+.reset-buttons{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+.reset-buttons button{border-radius:10px;padding:10px 15px;font-size:14px;font-weight:600;background:#454549}
+.reset-buttons .reset-accept{background:#f4f4f5;color:#171719}
+/* Two independent composer alignment presets: keyboard closed / open */
+.edit-mode-controls{display:flex;align-items:center;gap:8px}
+.edit-mode-controls label{white-space:nowrap;color:#c7c7cb;font-size:12px}
+.edit-mode-controls select{min-width:0;flex:1}
+.edit-panel .edit-keyboard{flex:0 0 auto;border-radius:9px;border:1px solid #59595d;background:#3c3c3f;min-height:39px;padding:0 9px;font-size:12px}
+.edit-mode-hint{font-size:11px;line-height:1.35;color:#a5a5aa}
+@media(max-width:370px){.edit-mode-controls{flex-wrap:wrap}.edit-mode-controls label{width:100%}}
+.app.is-editing [data-edit-key].edit-selected{outline:2px dashed #ffd76e;outline-offset:3px;border-radius:5px}
+@media(max-width:360px){.edit-panel{left:6px;right:6px}.edit-panel .edit-arrow{min-width:36px}}
+
+/* v6: messages scroll behind the composer, with a continuous fade just like
+   a mobile chat transcript; the composer positioning still respects VisualViewport. */
+.app.has-messages .composer-region{
+ position:absolute;bottom:env(safe-area-inset-bottom,0px);left:0;right:0;
+ width:100%;z-index:4;
+}
+.app.has-messages.keyboard-open .composer-region{bottom:0}
+.app.has-messages .messages{
+ padding-bottom:calc(var(--composer-real-height,88px) + 36px);
+}
+/* v15: the gradient is physically attached to the top edge of the composer.
+   It therefore tracks keyboard motion AND saved composer offsets without a
+   rigid viewport cut. The last (opaque) part extends behind the composer. */
+.scroll-fade{
+ display:none;
+ position:absolute;
+ z-index:0;
+ left:0;right:0;
+ bottom:calc(100% - var(--fade-position,12px));
+ height:var(--fade-height,140px);
+ pointer-events:none;
+ background:linear-gradient(to bottom,
+  rgba(0,0,0,0) 0%,
+  rgba(0,0,0,.05) 20%,
+  rgba(0,0,0,.26) 49%,
+  rgba(0,0,0,.62) 75%,
+  rgba(0,0,0,.88) 90%,
+  #000 100%);
+}
+.app.has-messages .scroll-fade{display:block}
+/* The effect ends behind the solid composer background, never at an abrupt
+   clipping boundary in the conversation or the visual viewport. */
+.composer-region > .composer,.composer-region > .footer-caption{position:relative;z-index:1}
+.jump-to-bottom{
+ display:none;position:absolute;z-index:5;left:50%;
+ bottom:calc(var(--composer-real-height,88px) + env(safe-area-inset-bottom,0px) + 14px);
+ width:47px;height:47px;padding:0;
+ transform:translateX(-50%);
+ border-radius:50%;border:1px solid #373739;
+ box-shadow:0 3px 14px rgba(0,0,0,.5);
+ background:#1c1c1e;color:#f4f4f5;
+ align-items:center;justify-content:center;
+ -webkit-tap-highlight-color:transparent;
+}
+/* v10: adjust the vertical space between numbered list items only.
+   This setting is independent from font size, question bubble and answer heading. */
+.app.is-editing.list-gap-edit-selected .answer-list{
+ outline:1px dashed #ffd76e;outline-offset:4px;
+}
+/* v7: one font-size value for both the user's question and the entire generated answer,
+   including numeric list markers and any inline emoji (they inherit font-size). */
+.app.is-editing.text-size-edit-selected .message-user .bubble,
+.app.is-editing.text-size-edit-selected .assistant-message{
+ outline:1px dashed #ffd76e;outline-offset:3px;
+}
+.jump-to-bottom svg{width:25px;height:25px}
+/* Keep centered after applying the editor's independent vertical offset. */
+.jump-to-bottom[data-edit-key]{transform:translate(-50%,var(--edit-y,0px))}
+.jump-to-bottom.visible{display:flex}
+/* When selected, preview the arrow even before a long answer exists. */
+.app.is-editing.jump-edit-selected .jump-to-bottom{display:flex}
+.app.keyboard-open .jump-to-bottom{
+ bottom:calc(var(--composer-real-height,88px) + 14px);
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header class="app-header" data-edit-key="header">
+    <button class="header-icon" data-edit-key="menu" id="menuButton" aria-label="Abrir menu" type="button">
+      <svg fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" viewBox="0 0 24 24"><path d="M4 8h16M4 15h12"/></svg>
+    </button>
+    <button class="model-title" data-edit-key="model" id="modelButton" type="button" aria-label="Selecionar modelo">ChatGPT
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+    </button>
+    <button class="header-icon" data-edit-key="newchat" id="newChatButton" aria-label="Nova conversa" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-7"/><path d="M12 12 21 3m0 0h-6m6 0v6"/></svg>
+    </button>
+  </header>
+  <main class="conversation" id="conversation" aria-label="Conversa">
+    <section class="welcome" id="welcome">
+      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=18" alt="" aria-hidden="true">
+      <h1 class="welcome-title" data-edit-key="welcome-title">Como posso ajudar?</h1>
+    </section>
+    <section class="messages" id="messages" aria-live="off"></section>
+  </main>
+  <button class="jump-to-bottom" data-edit-key="jump" id="jumpToBottom" type="button" aria-label="Ir para o final da resposta" title="Ir para o final">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v15m0 0-7-7m7 7 7-7"/></svg>
+  </button>
+  <div class="composer-region" data-edit-key="composer-region">
+    <div class="scroll-fade" id="scrollFade" aria-hidden="true"></div>
+    <form class="composer" data-edit-key="composer" id="composerForm" autocomplete="off">
+      <div class="composer-inner">
+        <button class="add-button" data-edit-key="plus" type="button" id="addButton" aria-label="Adicionar">
+          <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"><path d="M12 4v16M4 12h16"/></svg>
+        </button>
+        <textarea class="prompt" data-edit-key="prompt" id="prompt" rows="1" placeholder="Perguntar ao ChatGPT" aria-label="Mensagem" enterkeyhint="send" autocapitalize="sentences" autocomplete="off" autocorrect="on" spellcheck="true"></textarea>
+        <div class="composer-buttons">
+          <button class="decorative-mic" data-edit-key="microphone" id="micButton" type="button" aria-label="Ativar efeito"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5.5 11.5c0 8.2 13 8.2 13 0M12 19v3m-4 0h8"/></svg></button>
+          <button class="voice-wave" data-edit-key="voice" id="voiceButton" type="button" aria-label="Voz"><svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M3 10v6m5-10v14m5-17v20m5-16v12m5-8v4"/></svg></button>
+          <button class="send" data-edit-key="send" type="submit" id="sendButton" aria-label="Enviar mensagem" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5m0 0-6 6m6-6 6 6"/></svg>
+          </button>
+        </div>
+      </div>
+    </form>
+    <div class="footer-caption" data-edit-key="footnote">O ChatGPT pode cometer erros. Confira informações importantes<span class="secret-confirmation" id="secretConfirmation" aria-hidden="true"></span></div>
+  </div>
+  <div class="modal-backdrop" id="backdrop"></div>
+  <aside class="side-panel" id="sidePanel" aria-hidden="true">
+    <div class="side-top"><strong>ChatGPT</strong><button class="side-close" id="closeSidebar" type="button" aria-label="Fechar menu">×</button></div>
+    <button class="side-row" id="sidebarNew" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-7M12 12 21 3m0 0h-6m6 0v6"/></svg>Nova conversa</button>
+    <div class="side-caption">Recentes</div>
+    <button class="side-row recent" id="sidebarRecent" type="button">Lista de 100 animais</button>
+  </aside>
+  <div class="popover" id="modelPopover"><button type="button" id="modelClose">ChatGPT <span>✓</span></button></div>
+
+  <div class="edit-panel" id="editPanel" hidden>
+    <div class="edit-panel-top"><strong>Ajustar interface</strong><button class="edit-save" type="button" id="editSave">Salvar</button></div>
+    <div class="edit-mode-controls">
+      <label for="editMode">Barra inferior</label>
+      <select id="editMode" aria-label="Configuração da barra inferior">
+        <option value="closed">1 · Teclado fechado</option>
+        <option value="open">2 · Teclado aberto</option>
+      </select>
+      <button class="edit-keyboard" type="button" id="editKeyboard">Ver com teclado</button>
+    </div>
+    <div class="edit-mode-hint" id="editModeHint">Cada estado guarda seus próprios ajustes, sem afetar o outro</div>
+    <div class="edit-panel-controls">
+      <select id="editTarget" aria-label="Elemento para ajustar">
+        <option value="conversation-text-size">Tamanho: pergunta + lista + emojis</option>
+        <option value="list-item-spacing">Espaçamento entre itens da lista</option>
+        <option value="fade-height">Degradê: altura</option>
+        <option value="fade-position">Degradê: posição vertical</option>
+        <option value="response-actions">Botões: mover conjunto ↑ ↓ ← →</option>
+        <option value="response-action-gap">Botões: espaçamento entre eles</option>
+        <option value="response-action-size-0">Botão 1: tamanho do Copiar</option>
+        <option value="response-action-size-1">Botão 2: tamanho da Avaliação</option>
+        <option value="response-action-size-2">Botão 3: tamanho do Áudio</option>
+        <option value="response-action-size-3">Botão 4: tamanho do Compartilhar</option>
+        <option value="response-action-size-4">Botão 5: tamanho dos três pontos</option>
+        <option value="jump">Seta para o final (↓)</option>
+        <option value="composer-region">Barra inferior inteira</option>
+        <option value="composer">Campo de mensagem</option>
+        <option value="plus">Botão +</option>
+        <option value="prompt">Texto Perguntar ao ChatGPT</option>
+        <option value="microphone">Microfone</option>
+        <option value="voice">Botão de voz</option>
+        <option value="send">Botão enviar</option>
+        <option value="footnote">Aviso inferior</option>
+        <option value="welcome-logo">Logotipo central</option>
+        <option value="welcome-title">Como posso ajudar?</option>
+        <option value="header">Barra superior inteira</option>
+        <option value="menu">Menu</option>
+        <option value="model">Título ChatGPT</option>
+        <option value="newchat">Nova conversa</option>
+      </select>
+      <button class="edit-arrow" type="button" id="editUp" aria-label="Subir um pixel">↑</button>
+      <button class="edit-arrow" type="button" id="editDown" aria-label="Descer um pixel">↓</button>
+    </div>
+    <div class="edit-horizontal" id="editHorizontal" hidden>
+      <span class="edit-axis">Posição horizontal dos 5 botões</span>
+      <button class="edit-arrow" type="button" id="editLeft" aria-label="Mover botões da resposta um pixel para a esquerda">←</button>
+      <button class="edit-arrow" type="button" id="editRight" aria-label="Mover botões da resposta um pixel para a direita">→</button>
+    </div>
+    <div class="edit-panel-bottom"><span id="editPixels">0 px, ajuste de 1 px por toque</span><button class="edit-reset" type="button" id="editReset">Restaurar padrões</button></div>
+  </div>
+  <div class="reset-confirm" id="resetConfirm" role="dialog" aria-modal="true" aria-labelledby="resetTitle" hidden>
+    <div class="reset-card">
+      <strong id="resetTitle">Restaurar os padrões?</strong>
+      <p>Deseja realmente restaurar todos os ajustes visuais para os valores padrão? Nada será alterado se você cancelar</p>
+      <div class="reset-buttons">
+        <button type="button" id="resetCancel">Cancelar</button>
+        <button class="reset-accept" type="button" id="resetAccept">Restaurar</button>
+      </div>
+    </div>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+</div>
+<script>
+(()=>{
+'use strict';
+const KEY_VALUES={i:1,o:2,p:3,j:4,k:5,l:6,b:7,n:8,m:9};
+const app=document.getElementById('app');
+const prompt=document.getElementById('prompt');
+const form=document.getElementById('composerForm');
+const sendButton=document.getElementById('sendButton');
+const scroller=document.getElementById('conversation');
+const composerRegion=document.querySelector('.composer-region');
+const jumpButton=document.getElementById('jumpToBottom');
+let followTail=false;
+let isDraggingScroll=false;
+function scrollGap(){return Math.max(0,scroller.scrollHeight-scroller.scrollTop-scroller.clientHeight);}
+function updateJumpButton(){
+  const hasList=!!messages.querySelector('.answer-list li');
+  jumpButton.classList.toggle('visible',app.classList.contains('has-messages')&&hasList&&scrollGap()>52);
+}
+function refreshComposerMeasure(){
+  const height=Math.ceil(composerRegion.getBoundingClientRect().height);
+  app.style.setProperty('--composer-real-height',Math.max(54,height)+'px');
+  updateJumpButton();
+}
+// A deliberate scroll overrides any previous instruction to follow new text.
+scroller.addEventListener('touchstart',()=>{isDraggingScroll=true;followTail=false;},{passive:true});
+scroller.addEventListener('touchend',()=>{isDraggingScroll=false;if(scrollGap()<25)followTail=true;},{passive:true});
+scroller.addEventListener('touchcancel',()=>{isDraggingScroll=false;},{passive:true});
+scroller.addEventListener('wheel',()=>{followTail=false;},{passive:true});
+scroller.addEventListener('scroll',()=>{
+  updateJumpButton();
+  if(!isDraggingScroll&&!generating&&scrollGap()<25)followTail=false;
+},{passive:true});
+jumpButton.addEventListener('click',()=>{
+  followTail=true;
+  scroller.scrollTo({top:scroller.scrollHeight,behavior:'smooth'});
+  // Future streamed items continue to follow only after this explicit action.
+  updateJumpButton();
+});
+const messages=document.getElementById('messages');
+const menuButton=document.getElementById('menuButton');
+const sidebar=document.getElementById('sidePanel');
+const backdrop=document.getElementById('backdrop');
+const modelPopover=document.getElementById('modelPopover');
+const toast=document.getElementById('toast');
+const secretConfirmation=document.getElementById('secretConfirmation');
+let confirmationTimer=null;
+let digits=[];
+let visibleText='';
+let generating=false;
+let currentPosition=1;
+let generationToken=0;
+let activeTimer=null;
+let selectedAnswerList=[];
+let responseIntro='';
+let currentForce='';
+let forceEmojiSpan=null;
+// Timer exclusivo para a revelação. Nunca depende de toques na tela.
+let revealTimer=null;
+let revealPending=false;
+const NORMAL_PLACEHOLDER='Perguntar ao ChatGPT';
+const ARMED_PLACEHOLDER='Perguntar ao ChatGPT.';
+function cancelReveal(){
+  if(revealTimer!==null)clearTimeout(revealTimer);
+  revealTimer=null;
+  revealPending=false;
+  prompt.placeholder=NORMAL_PLACEHOLDER;
+}
+let toastTimer=null;
+const lastResponse={prompt:'',position:1,category:'animais'};
+// Lists are loaded on demand from /listas/*.txt
+function digit(key){const lower=key.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();return KEY_VALUES[lower]??0;}
+function forcedPosition(){if(digits.length!==2)return null;return (digits[0]*10+digits[1])||100;}
+// A confirmação mostra o número real por 2 segundos, sem alterar o layout.
+function clearConfirmation(){
+  clearTimeout(confirmationTimer);confirmationTimer=null;
+  secretConfirmation.classList.remove('visible');secretConfirmation.textContent='';
+}
+function showConfirmation(){
+  clearConfirmation();
+  const position=forcedPosition();
+  if(position===null)return;
+  secretConfirmation.textContent=String(position);
+  secretConfirmation.classList.add('visible');
+  confirmationTimer=setTimeout(()=>{
+    secretConfirmation.classList.remove('visible');
+    confirmationTimer=null;
+  },2000);
+}
+// V18 mantém o campo único da v17: com corretor nativo habilitado desde o foco.
+// O código secreto é armazenado apenas em `digits`, separado do texto visível.
+// Nunca alternamos atributos do teclado enquanto o campo está focado.
+function updateComposer(){
+  const canSend=prompt.value.trim().length>0 && digits.length===2 && !generating;
+  app.classList.toggle('ready-to-send',canSend);
+  sendButton.disabled=!canSend;
+  prompt.style.height='32px';
+  prompt.style.height=Math.min(Math.max(32,prompt.scrollHeight),122)+'px';
+}
+function applySecret(chars){
+  for(const char of Array.from(chars)){
+    if(digits.length<2){digits.push(digit(char));visibleText+=(digits.length===1?'L':'i');}
+    else{visibleText+=char;}
+  }
+  prompt.value=visibleText;
+  prompt.setSelectionRange(prompt.value.length,prompt.value.length);
+  showConfirmation();
+  updateComposer();
+}
+// beforeinput captura teclas físicas e virtuais sem exibir os dois caracteres secretos
+prompt.addEventListener('beforeinput',(ev)=>{
+  if(ev.isComposing || generating)return;
+  if(!ev.inputType.startsWith('insert'))return;
+  let chars=ev.data;
+  if(!chars && ev.dataTransfer)chars=ev.dataTransfer.getData('text/plain');
+  if(!chars)return;
+  const start=prompt.selectionStart, end=prompt.selectionEnd;
+  // Correções e sugestões do iOS nunca contam como teclas secretas.
+  // Antes da segunda tecla, preservar o texto artificial 'L' ou 'Li'.
+  // Depois da segunda tecla, deixar o teclado corrigir livremente o texto,
+  // mantendo `digits` intacto mesmo que substitua a palavra inteira.
+  if(ev.inputType==='insertReplacementText'){
+    if(digits.length<2 && ev.cancelable)ev.preventDefault();
+    return;
+  }
+  if(digits.length===2 && (
+    ev.inputType==='insertFromComposition' ||
+    ev.inputType==='insertCompositionText'
+  ))return;
+  if(start===0 && end===prompt.value.length && prompt.value.length){
+    digits=[];visibleText='';clearConfirmation();
+  }else if(digits.length===2 && start===1 && end===2){
+    // Replaces only the second code letter without affecting the first.
+    ev.preventDefault();
+    digits[1]=digit(Array.from(chars)[0]);
+    visibleText='Li'+visibleText.slice(2);
+    prompt.value=visibleText;
+    prompt.setSelectionRange(2,2);
+    if(Array.from(chars).length>1){
+      const remaining=Array.from(chars).slice(1).join('');
+      visibleText=visibleText.slice(0,2)+remaining+visibleText.slice(2);
+      prompt.value=visibleText;
+      prompt.setSelectionRange(2+remaining.length,2+remaining.length);
+    }
+    showConfirmation();updateComposer();return;
+  }
+  if(digits.length<2){ev.preventDefault();applySecret(chars);return;}
+});
+// Fallback para teclados móveis que não disparam beforeinput cancelável
+prompt.addEventListener('input',(ev)=>{
+  if(generating)return;
+  if(ev.inputType==='insertReplacementText'){
+    if(digits.length<2){
+      // Fallback para correções nativas não canceláveis no iOS.
+      prompt.value=visibleText;
+      prompt.setSelectionRange(prompt.value.length,prompt.value.length);
+    }else{
+      // Mesmo uma correção sobre a palavra inicial nunca recalcula o force.
+      visibleText=prompt.value;
+    }
+    updateComposer();
+    return;
+  }
+  if(digits.length<2){
+    const now=prompt.value;
+    const addition=now.startsWith(visibleText)?now.slice(visibleText.length):now;
+    if(addition.length){applySecret(addition);return;}
+  }
+  visibleText=prompt.value;
+  if(!visibleText){digits=[];clearConfirmation();}
+  else if(visibleText.length===1 && digits.length===2){
+    digits=digits.slice(0,1);clearConfirmation();
+  }
+  updateComposer();
+});
+prompt.addEventListener('keydown',(ev)=>{
+  if(ev.key==='Enter'&&!ev.shiftKey&&!ev.isComposing){ev.preventDefault();sendRequest();}
+});
+function normalise(value){
+ return value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+}
+// A category can be typed naturally, with articles, accents, optional adjectives,
+// and even a compound name: "100 pontos turísticos famosos".
+// An exact quantity is required only for these three specialist lists.
+const SPECIAL_LENGTHS={aura:31,familiareszoologicos:31,perguntascontatoespiritual:18};
+function wordsFromRequest(question){
+ const plain=normalise(question).trim();
+ // A request must still look like a list request, even when no count is given.
+ if(!/^(?:liste|lista|listas)\b/.test(plain))return null;
+ const rest=plain.replace(/^(?:liste|lista|listas)\b/,'').trim();
+ const tokens=rest.match(/[a-z0-9]+/g)||[];
+ const qtyMatch=rest.match(/\b(\d{1,3})\b/);
+ const explicitQuantity=qtyMatch?Number(qtyMatch[1]):null;
+ if(explicitQuantity!==null && (!Number.isInteger(explicitQuantity)||explicitQuantity<1||explicitQuantity>100))return null;
+ const has=(...words)=>words.some(word=>tokens.includes(word));
+ // These categories are recognized anywhere in the question and default to
+ // their complete file length when the user does not say a count.
+ let specialFile=null;
+ if(has('espiritual','espirituais') || (has('pergunta','perguntas') && (has('contato')||explicitQuantity===18))){
+  specialFile='perguntascontatoespiritual';
+ }else if(has('aura','auras')){
+  specialFile='aura';
+ }else if(has('familiar','familiares')){
+  specialFile='familiareszoologicos';
+ }
+ if(specialFile){
+  return {quantity:explicitQuantity??SPECIAL_LENGTHS[specialFile],words:tokens,specialFile};
+ }
+ // All normal categories still need a numeric count and a category after it.
+ if(explicitQuantity===null)return null;
+ const afterNumber=rest.slice(qtyMatch.index+qtyMatch[0].length).trim();
+ const words=afterNumber.match(/[a-z0-9]+/g)||[];
+ if(!words.length)return null;
+ // Ignore common articles when the number is followed by one.
+ while(['a','o','as','os','de','do','da','dos','das'].includes(words[0]))words.shift();
+ if(!words.length)return null;
+ return {quantity:explicitQuantity,words};
+}
+function requestCandidates(words,quantity){
+ const first=words[0];
+ // These aliases keep the most natural short phrasings recognized.
+ if(first==='aura'||first==='auras')return [{file:'aura',label:'auras'}];
+ if(first==='familiares'||first==='familiar')return [{file:'familiareszoologicos',label:'familiares zoológicos'}];
+ if(first==='pontos'&&words[1]?.startsWith('turistic'))return [{file:'pontosturisticos',label:'pontos turísticos'}];
+ if(first==='perguntas'||first==='pergunta'){
+  const more=words.slice(1).join(' ');
+  // The 18-question collection is uniquely for spiritual contact, even if
+  // requested just as "18 perguntas" or "18 perguntas pra contato".
+  if(quantity===18 || /\b(?:contato|espiritual|espirituais|espiritismo)\b/.test(more)){
+   return [{file:'perguntascontatoespiritual',label:'perguntas para contato espiritual'}];
+  }
+  return [{file:'perguntas',label:'perguntas'}];
+ }
+ if(first==='musicas'||first==='musica')return [{file:'musicas',label:'músicas'}];
+ if(first==='pontos')return [{file:'pontosturisticos',label:'pontos turísticos'}];
+ if(first==='filme')return [{file:'filmes',label:'filmes'}];
+ if(first==='animal')return [{file:'animais',label:'animais'}];
+ if(first==='celebridade')return [{file:'celebridades',label:'celebridades'}];
+ // Future lists can be added to /listas without registering their names.
+ // Try longest category first, then shorter prefixes, to disregard modifiers.
+ const candidates=[];
+ for(let count=Math.min(words.length,5);count>=1;count--){
+  const segment=words.slice(0,count);
+  candidates.push({file:segment.join(''),label:segment.join(' ')});
+  if(count===1)candidates.push({file:segment[0],label:segment[0]});
+ }
+ return candidates.filter((entry,index,array)=>array.findIndex(other=>other.file===entry.file)===index);
+}
+function parseRequest(question){
+ const parsed=wordsFromRequest(question);
+ if(!parsed)return null;
+ const labels={aura:'auras',familiareszoologicos:'familiares zoológicos',perguntascontatoespiritual:'perguntas para contato espiritual'};
+ const candidates=parsed.specialFile
+  ?[{file:parsed.specialFile,label:labels[parsed.specialFile]}]
+  :requestCandidates(parsed.words,parsed.quantity);
+ return {...parsed,candidates};
+}
+async function fetchListFile(category){
+ if(!category||!/^[a-z0-9]+$/.test(category))throw Error('categoria invalida');
+ const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=18&ts='+Date.now(),{cache:'no-store'});
+ if(!response.ok)throw Error('lista nao disponivel');
+ const raw=await response.text();
+ return raw.replace(/^\uFEFF/,'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+}
+async function resolveList(request){
+ if(!request)throw Error('pedido invalido');
+ for(const candidate of request.candidates){
+  try{
+   const items=await fetchListFile(candidate.file);
+   const needed=SPECIAL_LENGTHS[candidate.file];
+   if(needed!==undefined && (items.length!==needed||request.quantity!==needed))throw Error('quantidade exata requerida');
+   if(!items.length||request.quantity>items.length)throw Error('quantidade indisponivel');
+   return {...candidate,items};
+  }catch(error){
+   // A found list with a mismatching quantity must fail, not silently
+   // select a different category or wrap the force around.
+   if(error.message!=='lista nao disponivel')throw error;
+  }
+ }
+ throw Error('categoria indisponivel');
+}
+function arrange(items,position,quantity,category){
+ if(!Number.isInteger(position)||position<1||position>quantity)throw Error('codigo fora da lista');
+ if(category==='familiareszoologicos'){
+  // Reserve Panda at the chosen position and Raposa at 20, except when
+  // Panda is at 20: Raposa immediately follows at 21.
+  if(quantity!==31||items.length!==31)throw Error('familiares exige 31 itens');
+  const out=Array(31);
+  out[position-1]=items[0];
+  out[(position===20?21:20)-1]=items[1];
+  let next=2;
+  for(let i=0;i<out.length;i++)if(out[i]===undefined)out[i]=items[next++];
+  if(next!==items.length)throw Error('lista incompleta');
+  return out;
+ }
+ const ordered=items.slice(1,quantity);
+ ordered.splice(position-1,0,items[0]);
+ return ordered;
+}
+// Keep emoji's original horizontal space: only its visibility changes on reveal
+function splitEmoji(text){
+ const match=/\p{Extended_Pictographic}(?:\uFE0F|\u200D|\p{Emoji_Modifier}|\p{Extended_Pictographic})*/u.exec(text);
+ if(!match)return null;
+ return {before:text.slice(0,match.index),emoji:match[0],after:text.slice(match.index+match[0].length)};
+}
+function showToast(message){
+ toast.textContent=message;toast.classList.add('visible');
+ clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.remove('visible'),1700);
+}
+function scrollToEnd(force=false){
+ // Unlike v5, generation never moves the transcript automatically before
+ // an explicit press on the downward arrow.
+ if(force||followTail)scroller.scrollTop=scroller.scrollHeight;
+ updateJumpButton();
+}
+/* Five matching action groups, shared by the real reply and the live preview */
+function buildResponseActions(preview=false){
+ const actions=document.createElement('div');
+ actions.className=preview?'actions-preview-row':'response-actions';
+ if(!preview)actions.dataset.editKey='response-actions';
+ const copy=document.createElement('button');copy.type='button';copy.className='answer-action';
+ copy.dataset.actionIndex='0';copy.setAttribute('aria-label','Copiar resposta');
+ copy.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>';
+ if(!preview)copy.addEventListener('click',async()=>{
+  const content=responseIntro+'\n\n'+selectedAnswerList.map((a,i)=>(i+1)+'. '+(i===currentPosition-1&&forceEmojiSpan?.classList.contains('hidden')?a.replace(/\p{Extended_Pictographic}(?:\uFE0F|\u200D|\p{Emoji_Modifier}|\p{Extended_Pictographic})*/u,''):a)).join('\n');
+  try{await navigator.clipboard.writeText(content);showToast('Copiado');}
+  catch{showToast('Não foi possível copiar');}
+ });
+ const feedback=document.createElement('button');feedback.type='button';
+ feedback.className='answer-action feedback-action visual-only';feedback.dataset.actionIndex='1';
+ feedback.tabIndex=-1;feedback.setAttribute('aria-label','Avaliação (apenas visual)');
+ feedback.innerHTML='<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v11H4V10h3Zm0 0 5-7c1.9-2 4.2 0 3 2.2L13.5 9H19a2 2 0 0 1 2 2c0 2.5-1 6.1-2 9H7"/></svg><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14V3H4v11h3Zm0 0 5 7c1.9 2 4.2 0 3-2.2L13.5 15H19a2 2 0 0 0 2-2c0-2.5-1-6.1-2-9H7"/></svg>';
+ const others=[
+  {label:'Ouvir resposta (apenas visual)',svg:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5ZM15 9a5 5 0 0 1 0 6m3-9a9 9 0 0 1 0 12"/></svg>'},
+  {label:'Compartilhar resposta (apenas visual)',svg:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V3m0 0L8 7m4-4 4 4M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>'},
+  {label:'Mais opções (apenas visual)',svg:'<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.85"/><circle cx="12" cy="12" r="1.85"/><circle cx="19" cy="12" r="1.85"/></svg>'}
+ ];
+ actions.append(copy,feedback);
+ others.forEach((item,i)=>{
+  const button=document.createElement('button');button.type='button';
+  button.className='answer-action visual-only';button.dataset.actionIndex=String(i+2);button.tabIndex=-1;
+  button.setAttribute('aria-label',item.label);button.innerHTML=item.svg;actions.appendChild(button);
+ });
+ if(preview){
+  actions.setAttribute('aria-hidden','true');
+  for(const child of actions.children){child.tabIndex=-1;child.style.pointerEvents='none';}
+ }
+ return actions;
+}
+
+function createAssistant(message){
+ const user=document.createElement('div');user.className='message-user';
+ const bubble=document.createElement('div');bubble.className='bubble';bubble.textContent=message;user.appendChild(bubble);
+ const assistant=document.createElement('section');assistant.className='assistant-message';
+ const thinking=document.createElement('div');thinking.className='thinking';thinking.textContent='Pensando';
+ const intro=document.createElement('p');intro.className='answer-intro';intro.textContent=responseIntro;
+ const list=document.createElement('ol');list.className='answer-list';
+ const actions=buildResponseActions(false);
+ applyActionsPresentation(actions,editing?draftOffsets:savedOffsets);
+ if(editing&&selectedElement===RESPONSE_ACTIONS_KEY)actions.classList.add('edit-selected');
+ assistant.append(thinking,intro,list,actions);messages.append(user,assistant);
+ return {thinking,intro,list,actions};
+}
+function cancelGeneration(){generationToken++;generating=false;clearTimeout(activeTimer);activeTimer=null;}
+function resetNewChat(){
+ followTail=false;
+ cancelGeneration();clearConfirmation();digits=[];visibleText='';selectedAnswerList=[];currentPosition=1;currentForce='';forceEmojiSpan=null;cancelReveal();
+ prompt.value='';messages.replaceChildren();app.classList.remove('has-messages');
+ scroller.scrollTop=0;updateComposer();closeOverlays();updateJumpButton();
+}
+async function sendRequest(){
+ if(generating||digits.length!==2||!prompt.value.trim())return;
+ const secretPosition=forcedPosition();
+ const sentText=prompt.value.trim();
+ const request=parseRequest(sentText);
+ const quantity=request?.quantity??0;
+ // Invalid positions must yield a natural error, never wrap around.
+ currentPosition=secretPosition;
+ lastResponse.prompt=sentText;lastResponse.position=currentPosition;lastResponse.category=request?.candidates?.[0]?.file??null;
+ clearConfirmation();
+ currentForce='';forceEmojiSpan=null;cancelReveal();
+ generating=true;updateComposer();
+ prompt.blur();app.classList.remove('keyboard-open');
+ app.classList.add('has-messages');
+ followTail=false;refreshComposerMeasure();
+ responseIntro=request?'Aqui estão '+quantity+' '+request.candidates[0].label+':':'Confira a solicitação:';
+ const reply=createAssistant(sentText);
+ prompt.value='';visibleText='';digits=[];updateComposer();
+ // Show the user bubble and start the answer at the top of the transcript.
+ // New content flows beneath the stationary viewport and raises the jump button.
+ scroller.scrollTop=0;
+ updateJumpButton();
+ const token=++generationToken;
+ // Start the three-second visible thinking period as soon as the question is sent.
+ // Load the selected TXT concurrently, so a normal request begins answering at 3s.
+ const thinkingFinished=new Promise(resolve=>setTimeout(resolve,2000));
+ try{
+   const resolved=await resolveList(request);
+   await thinkingFinished;
+   if(token!==generationToken)return;
+   currentForce=resolved.items[0];
+   selectedAnswerList=arrange(resolved.items,currentPosition,quantity,resolved.file);
+   responseIntro='Aqui estão '+quantity+' '+resolved.label+':';
+   reply.intro.textContent=responseIntro;
+   reply.thinking.remove();
+   reply.intro.classList.add('visible');
+   scrollToEnd();
+   let count=0;
+   const emit=()=>{
+     if(token!==generationToken)return;
+     const batch=1;
+     for(let j=0;j<batch&&count<selectedAnswerList.length;j++,count++){
+       const li=document.createElement('li');
+       const item=selectedAnswerList[count];
+       if(count===currentPosition-1){
+         const split=splitEmoji(item);
+         if(split){
+           li.appendChild(document.createTextNode(split.before));
+           const e=document.createElement('span');e.className='force-emoji';e.textContent=split.emoji;
+           li.appendChild(e);
+           if(split.after)li.appendChild(document.createTextNode(split.after));
+           forceEmojiSpan=e;
+         }else li.textContent=item;
+       }else li.textContent=item;
+       reply.list.appendChild(li);
+     }
+     scrollToEnd();
+     if(count<selectedAnswerList.length){activeTimer=setTimeout(emit,76+(count%7===0?90:0));}
+     else{generating=false;reply.actions.classList.add('visible');updateComposer();updateJumpButton();}
+   };
+   activeTimer=setTimeout(emit,250);
+ }catch(error){
+   // Even an unavailable category gets the same three-second 'Pensando' state.
+   await thinkingFinished;
+   if(token!==generationToken)return;
+   reply.thinking.remove();reply.intro.remove();reply.list.remove();
+   const p=document.createElement('p');p.textContent='Desculpe, estou com dificuldade para responder no momento. Tente novamente mais tarde.';
+   reply.actions.before(p);
+   generating=false;selectedAnswerList=[];currentForce='';forceEmojiSpan=null;updateComposer();scrollToEnd();
+ }
+}
+form.addEventListener('submit',(e)=>{e.preventDefault();sendRequest();});
+function closeOverlays(){sidebar.classList.remove('open');backdrop.classList.remove('open');sidebar.setAttribute('aria-hidden','true');modelPopover.classList.remove('open');}
+menuButton.addEventListener('click',()=>{modelPopover.classList.remove('open');sidebar.classList.add('open');sidebar.setAttribute('aria-hidden','false');backdrop.classList.add('open');});
+document.getElementById('closeSidebar').addEventListener('click',closeOverlays);
+backdrop.addEventListener('click',closeOverlays);
+document.getElementById('newChatButton').addEventListener('click',resetNewChat);
+document.getElementById('sidebarNew').addEventListener('click',resetNewChat);
+document.getElementById('sidebarRecent').addEventListener('click',()=>{closeOverlays();if(!app.classList.contains('has-messages'))showToast('Nenhuma conversa recente');});
+document.getElementById('modelButton').addEventListener('click',()=>{sidebar.classList.remove('open');backdrop.classList.remove('open');modelPopover.classList.toggle('open');});
+document.getElementById('modelClose').addEventListener('click',closeOverlays);
+document.getElementById('addButton').addEventListener('click',()=>{if(didLongPress){didLongPress=false;return;}if(!editing){showToast('Conversa por texto');prompt.focus();}});
+scroller.addEventListener('touchstart',()=>{modelPopover.classList.remove('open');},{passive:true});
+// Secret disappearance: voice button starts a single five-second timer.
+// The dot in the placeholder is the only confirmation; no screen tap is needed.
+// v18: the entire microphone + voice area is one reliable touch target.
+// The SVGs and their visual locations are unchanged. A single tap on either
+// icon OR the space between them triggers the SAME guarded reveal action.
+function armEmojiReveal(){
+ if(editing||generating||revealPending||!app.classList.contains('has-messages'))return;
+ if(!forceEmojiSpan||!forceEmojiSpan.isConnected||forceEmojiSpan.classList.contains('hidden'))return;
+ revealPending=true;
+ prompt.placeholder=ARMED_PLACEHOLDER;
+ revealTimer=setTimeout(()=>{
+   revealTimer=null;
+   revealPending=false;
+   // visibility:hidden leaves the emoji's width, avoiding layout shifts.
+   if(forceEmojiSpan?.isConnected)forceEmojiSpan.classList.add('hidden');
+   prompt.placeholder=NORMAL_PLACEHOLDER;
+ },5000);
+}
+const micVoiceHitZone=document.querySelector('.composer-buttons');
+micVoiceHitZone.addEventListener('click',(event)=>{
+ // When the send arrow is visible, taps must continue to submit normally.
+ if(app.classList.contains('ready-to-send'))return;
+ armEmojiReveal();
+});
+// Press and hold + for 3 seconds. Composer adjustments have two distinct
+// profiles, while the rest of the interface keeps one shared alignment.
+const STORAGE_KEY='gpt-force-layout-v4';
+const LEGACY_STORAGE_KEY='gpt-force-layout-v2';
+const editPanel=document.getElementById('editPanel');
+const editMode=document.getElementById('editMode');
+const editModeHint=document.getElementById('editModeHint');
+const editKeyboard=document.getElementById('editKeyboard');
+const editTarget=document.getElementById('editTarget');
+const editPixels=document.getElementById('editPixels');
+const addButton=document.getElementById('addButton');
+const editableNodes=[...document.querySelectorAll('[data-edit-key]')];
+const editableKeys=new Set(editableNodes.map(node=>node.dataset.editKey));
+const RESPONSE_ACTIONS_KEY='response-actions';
+editableKeys.add(RESPONSE_ACTIONS_KEY);
+const COMPOSER_KEYS=new Set(['composer-region','composer','plus','prompt','microphone','voice','send','footnote','jump']);
+function cleanOffsets(input,allowed){
+ if(!input||typeof input!=='object'||Array.isArray(input))return {};
+ return Object.fromEntries(Object.entries(input).filter(([k,v])=>allowed.has(k)&&Number.isInteger(v)&&Math.abs(v)<=150));
+}
+function cleanActionX(value){return Number.isInteger(value)&&Math.abs(value)<=150?value:0;}
+const DEFAULT_ACTION_GAP=9,MIN_ACTION_GAP=-30,MAX_ACTION_GAP=30;
+const DEFAULT_ACTION_SIZES=[19,18,19,19,19],MIN_ACTION_SIZE=12,MAX_ACTION_SIZE=36;
+const ACTION_NAMES=['Copiar','Avaliação','Áudio','Compartilhar','Mais opções'];
+function cleanActionGap(value){return Number.isInteger(value)&&value>=MIN_ACTION_GAP&&value<=MAX_ACTION_GAP?value:DEFAULT_ACTION_GAP;}
+function cleanActionSizes(value){
+ return DEFAULT_ACTION_SIZES.map((def,i)=>Array.isArray(value)&&Number.isInteger(value[i])&&value[i]>=MIN_ACTION_SIZE&&value[i]<=MAX_ACTION_SIZE?value[i]:def);
+}
+const DEFAULT_LIST_SPACING=7;
+const MIN_LIST_SPACING=-30;
+const MAX_LIST_SPACING=50;
+function cleanSpacingPx(value){
+ return Number.isInteger(value) && value>=MIN_LIST_SPACING && value<=MAX_LIST_SPACING
+  ?value:DEFAULT_LIST_SPACING;
+}
+// Separate fine adjustments to fade length and position, in 1-pixel steps.
+const DEFAULT_FADE_HEIGHT=140, MIN_FADE_HEIGHT=30, MAX_FADE_HEIGHT=320;
+const DEFAULT_FADE_POSITION=12, MIN_FADE_POSITION=-100, MAX_FADE_POSITION=100;
+function cleanFadeHeight(value){
+ return Number.isInteger(value)&&value>=MIN_FADE_HEIGHT&&value<=MAX_FADE_HEIGHT?value:DEFAULT_FADE_HEIGHT;
+}
+function cleanFadePosition(value){
+ return Number.isInteger(value)&&value>=MIN_FADE_POSITION&&value<=MAX_FADE_POSITION?value:DEFAULT_FADE_POSITION;
+}
+const DEFAULT_CONVERSATION_FONT=16;
+const MIN_CONVERSATION_FONT=12;
+const MAX_CONVERSATION_FONT=30;
+function cleanFontPx(value){
+ return Number.isInteger(value) && value>=MIN_CONVERSATION_FONT && value<=MAX_CONVERSATION_FONT
+  ?value:DEFAULT_CONVERSATION_FONT;
+}
+function cleanProfiles(raw){
+ return {
+  shared:cleanOffsets(raw?.shared,new Set([...editableKeys].filter(key=>!COMPOSER_KEYS.has(key)))),
+  closed:cleanOffsets(raw?.closed,COMPOSER_KEYS),
+  open:cleanOffsets(raw?.open,COMPOSER_KEYS),
+  // Store alongside the existing layout, keeping all v4/v5/v6 positions intact.
+  fontPx:cleanFontPx(raw?.fontPx),
+  listGapPx:cleanSpacingPx(raw?.listGapPx),
+  actionsX:cleanActionX(raw?.actionsX),
+  actionGapPx:cleanActionGap(raw?.actionGapPx),
+  actionSizes:cleanActionSizes(raw?.actionSizes),
+  fadeHeight:cleanFadeHeight(raw?.fadeHeight),
+  fadePosition:cleanFadePosition(raw?.fadePosition)
+ };
+}
+function cloneProfiles(value){return {shared:{...value.shared},closed:{...value.closed},open:{...value.open},fontPx:value.fontPx,listGapPx:value.listGapPx,actionsX:value.actionsX,actionGapPx:value.actionGapPx,actionSizes:[...value.actionSizes],fadeHeight:value.fadeHeight,fadePosition:value.fadePosition};}
+let savedOffsets=cleanProfiles({});
+try{
+ const existing=localStorage.getItem(STORAGE_KEY);
+ if(existing){savedOffsets=cleanProfiles(JSON.parse(existing));}
+ else {
+  const old=cleanOffsets(JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY)||'{}'),editableKeys);
+  // Older single-layout configuration is migrated to BOTH states, no loss of tweaks.
+  savedOffsets=cleanProfiles({shared:old,closed:old,open:old});
+ }
+}catch(error){/* localStorage can be disabled */}
+let draftOffsets=cloneProfiles(savedOffsets);
+let editing=false;
+let selectedElement='composer-region';
+let selectedMode='closed';
+let keyboardIsOpen=false;
+let pressTimer=null;
+let didLongPress=false;
+function editBucket(key){return COMPOSER_KEYS.has(key)?selectedMode:'shared';}
+const TEXT_SIZE_KEY='conversation-text-size';
+const LIST_SPACING_KEY='list-item-spacing';
+const FADE_HEIGHT_KEY='fade-height';
+const FADE_POSITION_KEY='fade-position';
+const ACTION_GAP_KEY='response-action-gap';
+const ACTION_SIZE_PREFIX='response-action-size-';
+function actionSizeIndex(key){
+ if(!key.startsWith(ACTION_SIZE_PREFIX))return -1;
+ const index=Number(key.slice(ACTION_SIZE_PREFIX.length));
+ return Number.isInteger(index)&&index>=0&&index<5?index:-1;
+}
+function isActionSetting(key){return key===RESPONSE_ACTIONS_KEY||key===ACTION_GAP_KEY||actionSizeIndex(key)>=0;}
+const editUpButton=document.getElementById('editUp');
+const editDownButton=document.getElementById('editDown');
+const editLeftButton=document.getElementById('editLeft');
+const editRightButton=document.getElementById('editRight');
+const editHorizontal=document.getElementById('editHorizontal');
+const resetConfirm=document.getElementById('resetConfirm');
+function applyActionsPresentation(node,offsets){
+ if(!node)return;
+ node.style.setProperty('--edit-y',(offsets.shared[RESPONSE_ACTIONS_KEY]||0)+'px');
+ node.style.setProperty('--edit-x',(offsets.actionsX||0)+'px');
+ node.style.setProperty('--actions-gap',offsets.actionGapPx+'px');
+ for(const child of node.querySelectorAll('[data-action-index]')){
+  const index=Number(child.dataset.actionIndex);
+  child.style.setProperty('--icon-size',offsets.actionSizes[index]+'px');
+ }
+}
+function redrawOffsets(){
+ const offsets=editing?draftOffsets:savedOffsets;
+ // Both the prompt bubble and the answer inherit precisely the same size.
+ app.style.setProperty('--conversation-font-size',offsets.fontPx+'px');
+ app.style.setProperty('--list-item-spacing',offsets.listGapPx+'px');
+ app.style.setProperty('--fade-height',offsets.fadeHeight+'px');
+ app.style.setProperty('--fade-position',offsets.fadePosition+'px');
+ const displayedMode=editing?selectedMode:(keyboardIsOpen?'open':'closed');
+ for(const node of editableNodes){
+  const key=node.dataset.editKey;
+  const group=COMPOSER_KEYS.has(key)?displayedMode:'shared';
+  node.style.setProperty('--edit-y',(offsets[group][key]||0)+'px');
+ }
+ // The action bar is created dynamically at response time, not at page load.
+ const actionBar=messages.querySelector('.response-actions[data-edit-key="response-actions"]');
+ if(actionBar){
+  applyActionsPresentation(actionBar,offsets);
+  actionBar.classList.toggle('edit-selected',editing&&isActionSetting(selectedElement));
+ }
+ editHorizontal.hidden=!(editing&&selectedElement===RESPONSE_ACTIONS_KEY);
+ const adjustingFont=selectedElement===TEXT_SIZE_KEY;
+ const adjustingListSpacing=selectedElement===LIST_SPACING_KEY;
+ app.classList.toggle('text-size-edit-selected',editing&&adjustingFont);
+ app.classList.toggle('list-gap-edit-selected',editing&&adjustingListSpacing);
+ app.classList.toggle('jump-edit-selected',editing&&selectedElement==='jump');
+ if(adjustingFont){
+  editPixels.textContent=draftOffsets.fontPx+' px · pergunta, lista e emojis';
+  editUpButton.setAttribute('aria-label','Aumentar tamanho da fonte em um pixel');
+  editDownButton.setAttribute('aria-label','Diminuir tamanho da fonte em um pixel');
+ }else if(adjustingListSpacing){
+  editPixels.textContent=draftOffsets.listGapPx+' px · espaço entre linhas numeradas';
+  editUpButton.setAttribute('aria-label','Aumentar espaçamento entre itens em um pixel');
+  editDownButton.setAttribute('aria-label','Diminuir espaçamento entre itens em um pixel');
+ }else if(selectedElement===FADE_HEIGHT_KEY){
+  editPixels.textContent=draftOffsets.fadeHeight+' px · altura do degradê';
+  editUpButton.setAttribute('aria-label','Aumentar altura do degradê em um pixel');
+  editDownButton.setAttribute('aria-label','Diminuir altura do degradê em um pixel');
+ }else if(selectedElement===FADE_POSITION_KEY){
+  editPixels.textContent=draftOffsets.fadePosition+' px · posição do degradê';
+  editUpButton.setAttribute('aria-label','Subir degradê um pixel');
+  editDownButton.setAttribute('aria-label','Descer degradê um pixel');
+ }else if(selectedElement===ACTION_GAP_KEY){
+  editPixels.textContent=draftOffsets.actionGapPx+' px · espaço entre cada botão';
+  editUpButton.setAttribute('aria-label','Aumentar espaço entre botões em um pixel');
+  editDownButton.setAttribute('aria-label','Diminuir espaço entre botões em um pixel');
+ }else if(actionSizeIndex(selectedElement)>=0){
+  const index=actionSizeIndex(selectedElement);
+  editPixels.textContent=draftOffsets.actionSizes[index]+' px · tamanho de '+ACTION_NAMES[index];
+  editUpButton.setAttribute('aria-label','Aumentar tamanho do ícone em um pixel');
+  editDownButton.setAttribute('aria-label','Diminuir tamanho do ícone em um pixel');
+ }else{
+  const group=editBucket(selectedElement);
+  if(selectedElement===RESPONSE_ACTIONS_KEY){
+   editPixels.textContent='↑↓ '+(draftOffsets.shared[RESPONSE_ACTIONS_KEY]||0)+' px · ←→ '+(draftOffsets.actionsX||0)+' px';
+  }else editPixels.textContent=(draftOffsets[group][selectedElement]||0)+' px, ajuste de 1 px por toque';
+  editUpButton.setAttribute('aria-label','Subir um pixel');
+  editDownButton.setAttribute('aria-label','Descer um pixel');
+ }
+ if(editing){
+  const different=keyboardIsOpen!== (selectedMode==='open');
+  editModeHint.textContent=adjustingFont
+   ?'↑ aumenta e ↓ diminui a pergunta e a resposta juntas, inclusive os emojis. O ajuste vale com teclado aberto e fechado.'
+   :adjustingListSpacing
+     ? '↑ aumenta e ↓ diminui ao vivo o espaço entre os itens reais (inclusive valores negativos).'
+   :selectedElement===FADE_HEIGHT_KEY
+     ? '↑ amplia e ↓ reduz em 1 px a transição suave entre a lista e a caixa de mensagem. Veja diretamente na lista gerada.'
+   :selectedElement===FADE_POSITION_KEY
+     ? '↑ sobe e ↓ desce em 1 px o degradê, sem mover a caixa de mensagem. Veja diretamente na lista gerada.'
+   :selectedElement===RESPONSE_ACTIONS_KEY
+     ? '↑ ↓ ← → deslocam os cinco botões reais em passos de 1 px. Gere uma resposta antes de ajustar.'
+   :selectedElement===ACTION_GAP_KEY
+     ? '↑ aumenta e ↓ diminui ao vivo a distância entre os cinco botões, inclusive valores negativos.'
+   :actionSizeIndex(selectedElement)>=0
+     ? '↑ aumenta e ↓ diminui somente o tamanho deste ícone, de 1 em 1 px, sem afetar os outros.'
+   :COMPOSER_KEYS.has(selectedElement)
+     ? (different?'Ajustando a barra '+(selectedMode==='open'?'com teclado aberto':'com teclado fechado')+'. Use “Ver com teclado” para conferir o encaixe real':'Ajuste da barra para o estado atual do teclado')
+     :'Este elemento utiliza uma posição única nos dois estados';
+ }
+}
+function chooseEditElement(key){
+ if(key!==TEXT_SIZE_KEY&&key!==LIST_SPACING_KEY&&key!==FADE_HEIGHT_KEY&&key!==FADE_POSITION_KEY&&!isActionSetting(key)&&!editableKeys.has(key))return;
+ selectedElement=key;editTarget.value=key;
+ for(const node of editableNodes)node.classList.toggle('edit-selected',key!==TEXT_SIZE_KEY&&key!==LIST_SPACING_KEY&&node.dataset.editKey===key);
+ redrawOffsets();
+ if(editing && isActionSetting(key)){
+  const realButtons=messages.querySelector('.response-actions.visible');
+  if(realButtons){scroller.scrollTop=scroller.scrollHeight;updateJumpButton();}
+  else editModeHint.textContent='Gere uma lista primeiro para ajustar os cinco botões diretamente na resposta real';
+ }
+}
+function chooseEditMode(mode){
+ selectedMode=mode==='open'?'open':'closed';
+ editMode.value=selectedMode;
+ redrawOffsets();
+}
+function beginEdit(){
+ resetConfirm.hidden=true;
+ editing=true;cancelReveal();didLongPress=true;draftOffsets=cloneProfiles(savedOffsets);
+ selectedMode=keyboardIsOpen?'open':'closed';
+ app.classList.add('is-editing');editPanel.hidden=false;
+ chooseEditMode(selectedMode);chooseEditElement('composer-region');
+ // Do not blur the textarea here: it would close the iOS keyboard while
+ // the user is adjusting its open-state position.
+}
+function stopEdit(save){
+ resetConfirm.hidden=true;
+ if(save){
+  savedOffsets=cloneProfiles(draftOffsets);
+  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(savedOffsets));}
+  catch(error){showToast('Não foi possível salvar neste navegador');}
+ }else draftOffsets=cloneProfiles(savedOffsets);
+ editing=false;app.classList.remove('is-editing');editPanel.hidden=true;
+ for(const node of editableNodes)node.classList.remove('edit-selected');
+ redrawOffsets();
+}
+addButton.addEventListener('pointerdown',event=>{
+ if(editing||event.button>0)return;
+ didLongPress=false;clearTimeout(pressTimer);
+ pressTimer=setTimeout(beginEdit,3000);
+ // Keep the virtual keyboard visible on touch long-press, if already open.
+ if(document.activeElement===prompt && event.pointerType==='touch')event.preventDefault();
+});
+for(const action of ['pointerup','pointercancel','pointerleave'])addButton.addEventListener(action,()=>clearTimeout(pressTimer));
+addButton.addEventListener('contextmenu',event=>event.preventDefault());
+editMode.addEventListener('change',()=>chooseEditMode(editMode.value));
+editTarget.addEventListener('change',()=>chooseEditElement(editTarget.value));
+editUpButton.addEventListener('click',()=>{
+ if(selectedElement===TEXT_SIZE_KEY){
+  draftOffsets.fontPx=Math.min(MAX_CONVERSATION_FONT,draftOffsets.fontPx+1);
+ }else if(selectedElement===LIST_SPACING_KEY){
+  draftOffsets.listGapPx=Math.min(MAX_LIST_SPACING,draftOffsets.listGapPx+1);
+ }else if(selectedElement===FADE_HEIGHT_KEY){
+  draftOffsets.fadeHeight=Math.min(MAX_FADE_HEIGHT,draftOffsets.fadeHeight+1);
+ }else if(selectedElement===FADE_POSITION_KEY){
+  draftOffsets.fadePosition=Math.max(MIN_FADE_POSITION,draftOffsets.fadePosition-1);
+ }else if(selectedElement===ACTION_GAP_KEY){
+  draftOffsets.actionGapPx=Math.min(MAX_ACTION_GAP,draftOffsets.actionGapPx+1);
+ }else if(actionSizeIndex(selectedElement)>=0){
+  const index=actionSizeIndex(selectedElement);
+  draftOffsets.actionSizes[index]=Math.min(MAX_ACTION_SIZE,draftOffsets.actionSizes[index]+1);
+ }else{
+  const bucket=editBucket(selectedElement);
+  draftOffsets[bucket][selectedElement]=Math.max(-150,(draftOffsets[bucket][selectedElement]||0)-1);
+ }
+ redrawOffsets();
+});
+editDownButton.addEventListener('click',()=>{
+ if(selectedElement===TEXT_SIZE_KEY){
+  draftOffsets.fontPx=Math.max(MIN_CONVERSATION_FONT,draftOffsets.fontPx-1);
+ }else if(selectedElement===LIST_SPACING_KEY){
+  draftOffsets.listGapPx=Math.max(MIN_LIST_SPACING,draftOffsets.listGapPx-1);
+ }else if(selectedElement===FADE_HEIGHT_KEY){
+  draftOffsets.fadeHeight=Math.max(MIN_FADE_HEIGHT,draftOffsets.fadeHeight-1);
+ }else if(selectedElement===FADE_POSITION_KEY){
+  draftOffsets.fadePosition=Math.min(MAX_FADE_POSITION,draftOffsets.fadePosition+1);
+ }else if(selectedElement===ACTION_GAP_KEY){
+  draftOffsets.actionGapPx=Math.max(MIN_ACTION_GAP,draftOffsets.actionGapPx-1);
+ }else if(actionSizeIndex(selectedElement)>=0){
+  const index=actionSizeIndex(selectedElement);
+  draftOffsets.actionSizes[index]=Math.max(MIN_ACTION_SIZE,draftOffsets.actionSizes[index]-1);
+ }else{
+  const bucket=editBucket(selectedElement);
+  draftOffsets[bucket][selectedElement]=Math.min(150,(draftOffsets[bucket][selectedElement]||0)+1);
+ }
+ redrawOffsets();
+});
+editLeftButton.addEventListener('click',()=>{
+ if(!editing||selectedElement!==RESPONSE_ACTIONS_KEY)return;
+ draftOffsets.actionsX=Math.max(-150,draftOffsets.actionsX-1);redrawOffsets();
+});
+editRightButton.addEventListener('click',()=>{
+ if(!editing||selectedElement!==RESPONSE_ACTIONS_KEY)return;
+ draftOffsets.actionsX=Math.min(150,draftOffsets.actionsX+1);redrawOffsets();
+});
+document.getElementById('editSave').addEventListener('click',()=>stopEdit(true));
+// Never reset from an accidental tap; require a second intentional confirmation.
+document.getElementById('editReset').addEventListener('click',()=>{resetConfirm.hidden=false;});
+document.getElementById('resetCancel').addEventListener('click',()=>{resetConfirm.hidden=true;});
+document.getElementById('resetAccept').addEventListener('click',()=>{
+ resetConfirm.hidden=true;draftOffsets=cleanProfiles({});redrawOffsets();
+ // Saving remains explicit, as in prior versions of the editor.
+});
+editKeyboard.addEventListener('click',()=>{
+ if(document.activeElement===prompt){prompt.blur();chooseEditMode('closed');}
+ else{chooseEditMode('open');prompt.focus({preventScroll:true});}
+ scheduleViewportUpdate();
+});
+// When previewing the keyboard-open alignment, these controls must not steal
+// textarea focus on touch (a touch outside would otherwise close the keyboard).
+for(const buttonId of ['editUp','editDown','editLeft','editRight']){
+ document.getElementById(buttonId).addEventListener('pointerdown',event=>{
+  if(document.activeElement===prompt && event.pointerType==='touch')event.preventDefault();
+ });
+}
+app.addEventListener('click',event=>{
+ if(!editing||event.target.closest('#editPanel'))return;
+ const node=event.target.closest('[data-edit-key]');
+ if(!node)return;
+ event.preventDefault();event.stopImmediatePropagation();chooseEditElement(node.dataset.editKey);
+},true);
+// VisualViewport tracks the visible region above the iOS keyboard, including
+// its scroll offset when Safari pans the page to show the focused field.
+const initialViewport=window.visualViewport;
+let baselineHeight=Math.max(320,Math.round(initialViewport?.height||window.innerHeight));
+let pendingViewportFrame=0;
+function resizeToViewport(){
+ const vv=window.visualViewport;
+ const h=Math.max(220,Math.round(vv?.height||window.innerHeight));
+ const w=Math.round(vv?.width||window.innerWidth);
+ const top=Math.round(vv?.offsetTop||0);
+ const left=Math.round(vv?.offsetLeft||0);
+ // Record the largest observed unoccluded viewport, including when Safari's
+ // browser chrome expands or collapses; do not mistake toolbar changes for keyboard.
+ if(h>baselineHeight)baselineHeight=h;
+ const open=h < baselineHeight-130;
+ keyboardIsOpen=open;
+ document.documentElement.style.setProperty('--app-height',h+'px');
+ document.documentElement.style.setProperty('--viewport-width',w+'px');
+ document.documentElement.style.setProperty('--viewport-top',top+'px');
+ document.documentElement.style.setProperty('--viewport-left',left+'px');
+ app.classList.toggle('keyboard-open',open);
+ editKeyboard.textContent=open?'Fechar teclado':'Ver com teclado';
+ redrawOffsets();
+ refreshComposerMeasure();
+}
+function scheduleViewportUpdate(){
+ if(pendingViewportFrame)return;
+ pendingViewportFrame=requestAnimationFrame(()=>{pendingViewportFrame=0;resizeToViewport();});
+}
+if(window.visualViewport){
+ window.visualViewport.addEventListener('resize',scheduleViewportUpdate);
+ window.visualViewport.addEventListener('scroll',scheduleViewportUpdate);
+}
+window.addEventListener('resize',scheduleViewportUpdate);
+window.addEventListener('scroll',scheduleViewportUpdate,{passive:true});
+window.addEventListener('orientationchange',()=>setTimeout(scheduleViewportUpdate,250));
+for(const phase of ['focus','blur'])prompt.addEventListener(phase,()=>{
+ scheduleViewportUpdate();
+ // iOS animates the visual viewport over multiple frames on keyboard transitions.
+ for(const delay of [60,180,360,600])setTimeout(scheduleViewportUpdate,delay);
+});
+resizeToViewport();updateComposer();
+if('ResizeObserver' in window){
+ new ResizeObserver(()=>refreshComposerMeasure()).observe(composerRegion);
+}
+refreshComposerMeasure();
+})();
+</script>
+</body>
+</html>
