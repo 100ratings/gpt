@@ -1,26 +1,23 @@
-# GPT Force v23 | Conteúdo sob a barra e opacidade dos degradês
+# GPT Force v24 | Faixa preta inferior corrigida
 
-## Transparência inferior
-- A lista continua rolando até atrás do campo de mensagem e do aviso de rodapé
-- A camada preta sólida do degradê inferior foi desativada, o desaparecimento agora ocorre pela máscara de transparência da conversa
-- Os controles de altura e posição inferior passaram a atuar na própria máscara, mantendo as posições salvas
-- O topo, aprovado na v22, mantém sua aparência por padrão
+## Problema corrigido
+Na v23 a barra inferior já era transparente, mas a máscara de transparência da conversa reduzia a visibilidade dos últimos itens para aproximadamente 27% no fundo da tela, o que parecia uma faixa preta.
 
-## Ajustes de opacidade
-- Novo controle de opacidade inferior na seção Barra inferior, 0% a 100%, de 1 em 1%, padrão inicial 85%
-- Novo controle de opacidade superior na seção Topo, 0% a 100%, de 1 em 1%, padrão inicial 100%
-- Ambos são independentes e podem ser salvos, exportados e importados
-- Arquivos de backup das versões anteriores continuam compatíveis, mesmo sem os dois campos novos
+## Mudança
+- A área da conversa alcança a borda inferior, incluindo o espaço seguro do iPhone quando houver
+- A máscara inferior foi recalibrada para manter o conteúdo perceptível por trás do campo de entrada e do aviso, inclusive com opacidade do degradê configurada para 100%
+- O degradê continua configurável por altura, posição e opacidade
+- O campo de mensagem e o aviso mantêm suas posições, a área clicável dos botões permanece a mesma
+- Se não houver mais itens na lista naquela posição de rolagem, o fundo naturalmente continuará preto, pois não existe texto abaixo do último item
 
-## Seleção de textos
-- Elementos fixos da interface (título ChatGPT, rodapé, menus, tela de boas-vindas e botões) não são mais selecionáveis
-- Textos das perguntas e respostas continuam selecionáveis, o textarea preserva a seleção e o corretor nativo
+## Preservação
+- Código secreto, corretor nativo, listas, cabeçalho transparente, botão de revelar em 5 segundos, editor e configurações salvas mantidos
+- Backups v23 continuam compatíveis
+- Cache Busting atualizado para v24, com version.json publicado por último
+- Atualização manual por “Deseja atualizar o app” no menu da v23
 
-## Funcionalidades preservadas
-- Force OP = 23, captura secreta, corretor nativo do iOS, botão de microfone/voz, temporizador, listas e editor
-- Atualização manual pelo primeiro item do menu de conversas recentes
-- Versionamento de cache v23, marcador version.json atualizado por último
-
-## Validação
-- Testado com Playwright Chromium em layout móvel, incluindo força OP = 23, sobreposição de conteúdo sob o campo, seletividade dos textos, controles independentes de opacidade, persistência e importação de backups v22
-- A aparência no Safari do iPhone ainda requer a confirmação do usuário
+## Testes
+- Comparação visual entre v23 e v24 com 100 nomes em viewport móvel 428 × 926
+- Código OP convertido para Li, envio “Liste 100 celebridades”, 100 itens criados, sem erros de JavaScript
+- Comparada a máscara no rodapé: aproximadamente 0,269 na v23 e 0,711 na v24 com configuração padrão
+- Safari/PWA físico no iPhone requer validação final
