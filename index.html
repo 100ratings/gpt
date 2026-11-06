@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ChatGPT">
-<link rel="manifest" href="manifest.webmanifest?v=31">
-<link rel="apple-touch-icon" href="icon-192.png?v=31">
+<link rel="manifest" href="manifest.webmanifest?v=32">
+<link rel="apple-touch-icon" href="icon-192.png?v=32">
 <title>ChatGPT</title>
 <style>
 :root{color-scheme:dark;--bg:#000;--fg:#f5f5f5;--muted:#9b9b9d;--surface:#222224;--surface2:#2d2d30;--outline:#38383b;--header-h:60px;--app-height:100dvh}
@@ -57,6 +57,11 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
 .answer-list{margin:0;padding-left:27px;list-style:decimal outside}
 .answer-list li{padding-left:3px;margin:0 0 var(--list-item-spacing,7px);min-height:20px;overflow-wrap:break-word;animation:appear .19s ease-out both}
 .answer-list li::marker{font-variant-numeric:tabular-nums;color:#e5e5e5}
+/* v32: hide ONLY the punctuation of the forced numbered item during the
+   five-second reveal countdown, preserving the list counter and layout. */
+.answer-list li.reveal-dot-hidden::marker{content:counter(list-item) ' '}
+.force-emoji{opacity:1;transition:opacity 1s linear}
+.force-emoji.fading{opacity:0}
 @keyframes appear{from{opacity:.15;transform:translateY(3px)}to{opacity:1;transform:none}}
 .thinking{display:flex;align-items:center;height:28px;margin-top:1px;color:#bcbcc0;font-size:var(--conversation-font-size,16px);line-height:1.45}
 /* The five buttons share one live presentation rule set. */
@@ -160,7 +165,7 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
 [data-edit-key]{transform:translateY(var(--edit-y,0px))}
 .welcome-mark{object-fit:contain}
 .voice-wave{pointer-events:auto;touch-action:manipulation;padding:0}
-.force-emoji.hidden{visibility:hidden}
+.force-emoji.hidden{visibility:hidden;opacity:0}
 .add-button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 .edit-panel[hidden]{display:none!important}
 .edit-panel{position:absolute;top:calc(env(safe-area-inset-top,0px) + 64px);left:0;right:0;z-index:30;width:min(var(--edit-panel-width,450px),calc(100% - 20px));height:min(var(--edit-panel-height,540px),calc(var(--app-height,100dvh) - env(safe-area-inset-top,0px) - 80px));max-width:450px;margin:0 auto;background:#29292c;border:1px solid #48484b;border-radius:17px;box-shadow:0 12px 42px #000b;padding:13px;display:flex;flex-direction:column;gap:10px;max-height:calc(var(--app-height,100dvh) - env(safe-area-inset-top,0px) - 80px);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
@@ -401,7 +406,7 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
   </header>
   <main class="conversation" id="conversation" aria-label="Conversa">
     <section class="welcome" id="welcome">
-      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=31" alt="" aria-hidden="true">
+      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=32" alt="" aria-hidden="true">
       <h1 class="welcome-title" data-edit-key="welcome-title">Como posso ajudar?</h1>
     </section>
     <section class="messages" id="messages" aria-live="off"></section>
@@ -577,13 +582,17 @@ let currentForce='';
 let forceEmojiSpan=null;
 // Timer exclusivo para a revelação. Nunca depende de toques na tela.
 let revealTimer=null;
+let revealFadeTimer=null;
 let revealPending=false;
+let revealMarkerItem=null;
+let revealEmojiTarget=null;
 const NORMAL_PLACEHOLDER='Perguntar ao ChatGPT';
 const SECRET_PLACEHOLDER='Perguntar ao ChatGPT.';
-const ARMED_PLACEHOLDER='Perguntar ao ChatGPT.';
 let secretMode=false;
 function updatePlaceholder(){
- prompt.placeholder=revealPending?ARMED_PLACEHOLDER:(secretMode?SECRET_PLACEHOLDER:NORMAL_PLACEHOLDER);
+ // The only period in the placeholder indicates SECRET INPUT MODE.
+ // The emoji reveal status is signalled by the period of the numbered item.
+ prompt.placeholder=secretMode?SECRET_PLACEHOLDER:NORMAL_PLACEHOLDER;
 }
 function setSecretMode(enabled){
  secretMode=Boolean(enabled);
@@ -613,7 +622,16 @@ if(!window.PointerEvent)prompt.addEventListener('touchstart',event=>{
 },{passive:true});
 function cancelReveal(){
  if(revealTimer!==null)clearTimeout(revealTimer);
+ if(revealFadeTimer!==null)clearTimeout(revealFadeTimer);
  revealTimer=null;
+ revealFadeTimer=null;
+ // Aborted reveals must not leave a list item missing its period.
+ if(revealMarkerItem)revealMarkerItem.classList.remove('reveal-dot-hidden');
+ if(revealEmojiTarget && !revealEmojiTarget.classList.contains('hidden')){
+  revealEmojiTarget.classList.remove('fading');
+ }
+ revealMarkerItem=null;
+ revealEmojiTarget=null;
  revealPending=false;
  updatePlaceholder();
 }
@@ -622,7 +640,7 @@ const lastResponse={prompt:'',position:1,category:'animais'};
 // Lists are loaded on demand from /listas/*.txt
 function digit(key){const lower=key.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();return KEY_VALUES[lower]??0;}
 function forcedPosition(){if(digits.length!==2)return null;return (digits[0]*10+digits[1])||100;}
-// A confirmação mostra o número real por 2 segundos, sem alterar o layout.
+// A confirmação mostra o número real por 3 segundos, sem alterar o layout.
 function clearConfirmation(){
   clearTimeout(confirmationTimer);confirmationTimer=null;
   secretConfirmation.classList.remove('visible');secretConfirmation.textContent='';
@@ -636,7 +654,7 @@ function showConfirmation(){
   confirmationTimer=setTimeout(()=>{
     secretConfirmation.classList.remove('visible');
     confirmationTimer=null;
-  },2000);
+  },3000);
 }
 // V18 mantém o campo único da v17: com corretor nativo habilitado desde o foco.
 // O código secreto é armazenado apenas em `digits`, separado do texto visível.
@@ -838,7 +856,7 @@ function parseRequest(question){
 }
 async function fetchListFile(category){
  if(!category||!/^[a-z0-9]+$/.test(category))throw Error('categoria invalida');
- const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=31&ts='+Date.now(),{cache:'no-store'});
+ const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=32&ts='+Date.now(),{cache:'no-store'});
  if(!response.ok)throw Error('lista nao disponivel');
  const raw=await response.text();
  return raw.replace(/^\uFEFF/,'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -1049,22 +1067,34 @@ document.getElementById('modelButton').addEventListener('click',()=>{sidebar.cla
 document.getElementById('modelClose').addEventListener('click',closeOverlays);
 document.getElementById('addButton').addEventListener('click',()=>{if(didLongPress){didLongPress=false;return;}if(!editing){showToast('Conversa por texto');prompt.focus();}});
 scroller.addEventListener('touchstart',()=>{modelPopover.classList.remove('open');},{passive:true});
-// Secret disappearance: voice button starts a single five-second timer.
-// The dot in the placeholder is the only confirmation; no screen tap is needed.
-// v18: the entire microphone + voice area is one reliable touch target.
-// The SVGs and their visual locations are unchanged. A single tap on either
-// icon OR the space between them triggers the SAME guarded reveal action.
+// v32: the reveal cue lives in the punctuation of the FORCED list item.
+// At t=0 hide its period; at t=5 restore the period; over t=5..6 smoothly
+// fade the emoji's opacity without moving the surrounding text.
+// The placeholder period is reserved exclusively for secret input mode.
+// The entire microphone + voice area remains the original reveal target.
 function armEmojiReveal(){
  if(editing||generating||revealPending||!app.classList.contains('has-messages'))return;
  if(!forceEmojiSpan||!forceEmojiSpan.isConnected||forceEmojiSpan.classList.contains('hidden'))return;
+ const emoji=forceEmojiSpan;
+ const item=emoji.closest('.answer-list li');
+ if(!item)return;
  revealPending=true;
- updatePlaceholder();
+ revealMarkerItem=item;
+ revealEmojiTarget=emoji;
+ item.classList.add('reveal-dot-hidden');
  revealTimer=setTimeout(()=>{
-   revealTimer=null;
+  revealTimer=null;
+  if(!emoji.isConnected||!item.isConnected){cancelReveal();return;}
+  // The period returns exactly five seconds after the button press.
+  item.classList.remove('reveal-dot-hidden');
+  emoji.classList.add('fading');
+  revealFadeTimer=setTimeout(()=>{
+   revealFadeTimer=null;
+   emoji.classList.add('hidden');
    revealPending=false;
-   // visibility:hidden leaves the emoji's width, avoiding layout shifts.
-   if(forceEmojiSpan?.isConnected)forceEmojiSpan.classList.add('hidden');
-   updatePlaceholder();
+   revealMarkerItem=null;
+   revealEmojiTarget=null;
+  },1000);
  },5000);
 }
 const micVoiceHitZone=document.querySelector('.composer-buttons');
@@ -1680,7 +1710,7 @@ function makeLayoutBackup(){
  return {
   format:LAYOUT_BACKUP_FORMAT,
   schemaVersion:LAYOUT_BACKUP_SCHEMA,
-  appVersion:31,
+  appVersion:32,
   exportedAt:new Date().toISOString(),
   settings:cloneProfiles(editing?draftOffsets:savedOffsets)
  };
@@ -1878,7 +1908,7 @@ refreshComposerMeasure();
 // v21: atualização discreta no PRIMEIRO item das conversas recentes.
 // Nenhum redirecionamento automático, nem durante o force nem numa conversa aberta.
 // A consulta bypassa cache HTTP e volta a ser feita a cada abertura do menu.
-const GPT_FORCE_VERSION=31;
+const GPT_FORCE_VERSION=32;
 const DEFAULT_RECENT_TITLE='Quando usar por que e porque';
 let latestAvailableVersion=null;
 let updateCheckSequence=0;
