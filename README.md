@@ -1,32 +1,29 @@
-# GPT Force v30 | Janela do editor redimensionável
+# GPT Force v31 | Ajustar a seta com o teclado aberto
 
-## O que mudou
-- Removidos por completo o botão Compactar/Expandir e o modo de edição compacto
-- A janela **Ajustar interface** agora tem dois sliders de uso direto:
-  - Altura de 210 a 740 pixels, passos de 10 pixels
-  - Largura de 260 a 450 pixels, passos de 10 pixels
-- A janela é redimensionada imediatamente enquanto o usuário arrasta os sliders, sem afetar a interface que está sendo editada
-- O tamanho escolhido é guardado junto com o restante das preferências ao tocar em **Salvar**
-- Os valores de altura e largura também são incluídos nos backups exportados, mantendo compatibilidade com backups das versões anteriores
-- No ajuste da seção **1 · Topo**, o painel permanece ancorado na parte inferior para deixar o cabeçalho visível, mas não é mais compactado ou tem ferramentas escondidas
-- Com teclado aberto, a altura da janela é limitada automaticamente à região disponível, preservando a rolagem interna das opções
-- Os botões de edição, seções e controles de Peek anteriores continuam presentes
+## Correção
+- A seta para o final (↓) continua na seção **3 · Mensagens e resposta**
+- Ao selecionar essa seta, agora aparecem dois botões próprios: **Teclado Fechado** e **Teclado Aberto**, sem precisar abrir o seletor nativo de modo enquanto o teclado está visível
+- O botão **Aberto** coloca o foco diretamente no campo de mensagem e exibe o teclado virtual quando o iOS permite
+- Os botões ↑ e ↓ preservam o foco no campo durante os toques, evitando que o teclado desapareça por uma mudança de foco
+- Touchstart é interceptado somente nos botões de ajuste da seta e nos controles correspondentes, com o clique aplicado no touchend, sem interferir no input e nos controles normais
+- O botão **Fechado** encerra o foco intencionalmente para editar a posição sem teclado
+- Cada modo mantém seu próprio deslocamento vertical da seta, como já ocorria internamente na v30
+- A seta continua com prévia selecionável mesmo quando não há longa lista gerada
 
-## Integridade
-- A comparação literal confirmou que o CSS do cabeçalho e o CSS do degradê superior são idênticos aos da v29
-- O código secreto OP=23, o modo normal, o indicador discreto, o efeito da joaninha, o reconhecimento de listas e o texto do campo permanecem inalterados
-- O comportamento anterior de orientação de tela restaurado na v29 permanece intacto
+## Preservação
+- O seletor de teclado existente permanece na seção da barra inferior e não foi modificado
+- O controle de tamanho da janela do editor, o peek, a importação/exportação de backups, a posição dos ícones e o restante da v30 foram preservados
+- Cabeçalho e degradê superior foram comparados literalmente com a v30 e permanecem idênticos
+- Force OP = 23, digitação normal, efeito da joaninha e reconhecimento das 12 listas continuam funcionando
+- O comportamento de landscape não foi alterado
 
 ## Testes
-- Playwright Chromium em 390 × 844: sliders alteram a janela de 540/450 para 270/300 pixels sem mover o topo nem o campo de mensagens
-- Com a seção Topo selecionada, o painel fica embaixo e não encobre o cabeçalho
-- Com viewport reduzido a 390 × 500, o painel continua dentro da área disponível
-- Salvamento e reabertura do editor mantêm os novos tamanhos
-- Backup v29 sem propriedades de tamanho é importado e assume os valores padrão
-- OP=23 produz `Liste 50 animais` e Joaninha aparece na posição 23
-- Nenhum erro de JavaScript observado nos testes automatizados
-- Validação visual definitiva com Safari/PWA instalado no iPhone ainda depende do usuário
+- Playwright Chromium com viewport móvel e toques simulados: abrir o modo da seta, alternar Aberto/Fechado, pressionar repetidamente ↑ e ↓ sem perder foco e salvar posições diferentes
+- Persistência das posições open/closed no localStorage preservada
+- Regressão: lista normal e lista secreta OP=23, com Joaninha na posição 23
+- Nenhum erro de JavaScript observado nos testes do Chromium
+- **Safari/PWA real:** o comportamento físico do teclado deve ser confirmado no iPhone, porque Chromium não reproduz integralmente o gerenciamento do teclado pelo iOS
 
 ## Publicação
-- Cache busting v30 aplicado no index e no manifesto
-- `version.json` publicado apenas após todos os demais arquivos
+- Versionamento de cache v31 atualizado nos arquivos
+- version.json publicado por último para disponibilizar a atualização manual do app
