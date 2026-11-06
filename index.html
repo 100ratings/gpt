@@ -796,7 +796,7 @@ async function sendRequest(){
  const token=++generationToken;
  // Start the three-second visible thinking period as soon as the question is sent.
  // Load the selected TXT concurrently, so a normal request begins answering at 3s.
- const thinkingFinished=new Promise(resolve=>setTimeout(resolve,2000));
+ const thinkingFinished=new Promise(resolve=>setTimeout(resolve,2500));
  try{
    const resolved=await resolveList(request);
    await thinkingFinished;
