@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ChatGPT">
-<link rel="manifest" href="manifest.webmanifest?v=30">
-<link rel="apple-touch-icon" href="icon-192.png?v=30">
+<link rel="manifest" href="manifest.webmanifest?v=31">
+<link rel="apple-touch-icon" href="icon-192.png?v=31">
 <title>ChatGPT</title>
 <style>
 :root{color-scheme:dark;--bg:#000;--fg:#f5f5f5;--muted:#9b9b9d;--surface:#222224;--surface2:#2d2d30;--outline:#38383b;--header-h:60px;--app-height:100dvh}
@@ -209,6 +209,16 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
 .edit-mode-controls select{min-width:0;flex:1}
 .edit-panel .edit-keyboard{flex:0 0 auto;border-radius:9px;border:1px solid #59595d;background:#3c3c3f;min-height:39px;padding:0 9px;font-size:12px}
 .edit-mode-hint{font-size:11px;line-height:1.35;color:#a5a5aa}
+/* v31: the jump arrow uses direct buttons, not a native dropdown that steals
+   focus from the iOS keyboard during precise alignment. */
+.edit-jump-states[hidden]{display:none!important}
+.edit-jump-states{display:flex;flex:1;gap:6px;min-width:0}
+.edit-jump-states button{flex:1;min-width:0;min-height:39px;padding:5px;border:1px solid #66666a;border-radius:9px;background:#363639;color:#ddd;font-size:12px;touch-action:manipulation}
+.edit-jump-states button[aria-pressed="true"]{background:#eeeef0;color:#19191b;border-color:#eeeef0;font-weight:700}
+.edit-mode-controls.jump-mode > select,
+.edit-mode-controls.jump-mode > .edit-keyboard{display:none!important}
+.edit-mode-controls.jump-mode{flex-wrap:nowrap}
+.edit-mode-controls.jump-mode > label{width:auto!important}
 @media(max-width:370px){.edit-mode-controls{flex-wrap:wrap}.edit-mode-controls label{width:100%}}
 .app.is-editing [data-edit-key].edit-selected{outline:2px dashed #ffd76e;outline-offset:3px;border-radius:5px}
 @media(max-width:360px){.edit-panel{left:6px;right:6px}.edit-panel .edit-arrow{min-width:36px}}
@@ -391,7 +401,7 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
   </header>
   <main class="conversation" id="conversation" aria-label="Conversa">
     <section class="welcome" id="welcome">
-      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=30" alt="" aria-hidden="true">
+      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=31" alt="" aria-hidden="true">
       <h1 class="welcome-title" data-edit-key="welcome-title">Como posso ajudar?</h1>
     </section>
     <section class="messages" id="messages" aria-live="off"></section>
@@ -461,6 +471,10 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
         <option value="open">Aberto</option>
       </select>
       <button class="edit-keyboard" type="button" id="editKeyboard">Ver com teclado</button>
+      <div class="edit-jump-states" id="editJumpStates" hidden role="group" aria-label="Visualização da seta por estado do teclado">
+        <button type="button" id="editJumpClosed" aria-pressed="true">Fechado</button>
+        <button type="button" id="editJumpOpen" aria-pressed="false">Aberto</button>
+      </div>
     </div>
     <div class="edit-mode-hint" id="editModeHint">Os ajustes da barra são independentes para cada estado do teclado</div>
     <div class="edit-section-row">
@@ -824,7 +838,7 @@ function parseRequest(question){
 }
 async function fetchListFile(category){
  if(!category||!/^[a-z0-9]+$/.test(category))throw Error('categoria invalida');
- const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=30&ts='+Date.now(),{cache:'no-store'});
+ const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=31&ts='+Date.now(),{cache:'no-store'});
  if(!response.ok)throw Error('lista nao disponivel');
  const raw=await response.text();
  return raw.replace(/^\uFEFF/,'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -1106,6 +1120,9 @@ const editKeyboard=document.getElementById('editKeyboard');
 const editTarget=document.getElementById('editTarget');
 const editSection=document.getElementById('editSection');
 const editModeControls=document.getElementById('editModeControls');
+const editJumpStates=document.getElementById('editJumpStates');
+const editJumpClosed=document.getElementById('editJumpClosed');
+const editJumpOpen=document.getElementById('editJumpOpen');
 const editBackupStatus=document.getElementById('editBackupStatus');
 const editImportFile=document.getElementById('editImportFile');
 // Ordem visual de cima para baixo, com menos opções em cada seleção.
@@ -1159,7 +1176,18 @@ function populateEditTargets(section){
   const option=document.createElement('option');
   option.value=key;option.textContent=label;editTarget.appendChild(option);
  }
- editModeControls.hidden=section!=='bottom';
+ updateKeyboardEditorControls();
+}
+// Make the keyboard-state controls available for the jump arrow in section 3.
+// A plain button keeps focus on the text composer, unlike a native select.
+function updateKeyboardEditorControls(){
+ const jumpSelected=editSection.value==='conversation' && editTarget.value==='jump';
+ editModeControls.hidden=editSection.value!=='bottom' && !jumpSelected;
+ editModeControls.classList.toggle('jump-mode',jumpSelected);
+ editJumpStates.hidden=!jumpSelected;
+ editJumpClosed.setAttribute('aria-pressed',String(editMode.value==='closed'));
+ editJumpOpen.setAttribute('aria-pressed',String(editMode.value==='open'));
+ if(jumpSelected)editModeHint.textContent='Use Aberto para manter o teclado visível enquanto posiciona a seta com ↑ e ↓';
 }
 populateEditTargets('bottom');
 const editPixels=document.getElementById('editPixels');
@@ -1482,6 +1510,11 @@ function chooseEditElement(key){
  if(!section)return;
  if(editSection.value!==section){editSection.value=section;populateEditTargets(section);}
  selectedElement=key;editTarget.value=key;
+ if(key==='jump'){
+  selectedMode=keyboardIsOpen?'open':'closed';
+  editMode.value=selectedMode;
+ }
+ updateKeyboardEditorControls();
  updateEditorDock();
  for(const node of editableNodes)node.classList.toggle('edit-selected',key!==TEXT_SIZE_KEY&&key!==LIST_SPACING_KEY&&node.dataset.editKey===key);
  redrawOffsets();
@@ -1494,6 +1527,7 @@ function chooseEditElement(key){
 function chooseEditMode(mode){
  selectedMode=mode==='open'?'open':'closed';
  editMode.value=selectedMode;
+ updateKeyboardEditorControls();
  redrawOffsets();
 }
 function beginEdit(){
@@ -1529,6 +1563,16 @@ addButton.addEventListener('pointerdown',event=>{
 for(const action of ['pointerup','pointercancel','pointerleave'])addButton.addEventListener(action,()=>clearTimeout(pressTimer));
 addButton.addEventListener('contextmenu',event=>event.preventDefault());
 editMode.addEventListener('change',()=>chooseEditMode(editMode.value));
+function changeJumpKeyboardState(wantOpen){
+ if(!editing || selectedElement!=='jump')return;
+ chooseEditMode(wantOpen?'open':'closed');
+ if(wantOpen){
+  if(document.activeElement!==prompt)prompt.focus({preventScroll:true});
+ }else if(document.activeElement===prompt)prompt.blur();
+ scheduleViewportUpdate();
+}
+editJumpOpen.addEventListener('click',()=>changeJumpKeyboardState(true));
+editJumpClosed.addEventListener('click',()=>changeJumpKeyboardState(false));
 editSection.addEventListener('change',()=>{
  const section=editSection.value;
  if(!Object.hasOwn(EDIT_SECTIONS,section))return;
@@ -1636,7 +1680,7 @@ function makeLayoutBackup(){
  return {
   format:LAYOUT_BACKUP_FORMAT,
   schemaVersion:LAYOUT_BACKUP_SCHEMA,
-  appVersion:30,
+  appVersion:31,
   exportedAt:new Date().toISOString(),
   settings:cloneProfiles(editing?draftOffsets:savedOffsets)
  };
@@ -1748,10 +1792,35 @@ editKeyboard.addEventListener('click',()=>{
 });
 // When previewing the keyboard-open alignment, these controls must not steal
 // textarea focus on touch (a touch outside would otherwise close the keyboard).
-for(const buttonId of ['editUp','editDown','editLeft','editRight']){
- document.getElementById(buttonId).addEventListener('pointerdown',event=>{
-  if(document.activeElement===prompt && event.pointerType==='touch')event.preventDefault();
+for(const buttonId of ['editUp','editDown','editLeft','editRight','editJumpOpen','editJumpClosed']){
+ const button=document.getElementById(buttonId);
+ button.addEventListener('pointerdown',event=>{
+  if(editing && document.activeElement===prompt && event.pointerType==='touch')event.preventDefault();
  });
+ button.addEventListener('mousedown',event=>{
+  if(editing && document.activeElement===prompt)event.preventDefault();
+ });
+ let heldTouch=null;
+ button.addEventListener('touchstart',event=>{
+  if(!editing || document.activeElement!==prompt || event.touches.length!==1)return;
+  const touch=event.touches[0];
+  heldTouch={x:touch.clientX,y:touch.clientY};
+  // Prevent a WebKit touch from removing focus and collapsing the iOS keyboard.
+  // The intended button click is dispatched in the same touchend user gesture.
+  event.preventDefault();
+ },{passive:false});
+ button.addEventListener('touchmove',event=>{
+  if(!heldTouch)return;
+  const touch=event.changedTouches[0];
+  if(Math.abs(touch.clientX-heldTouch.x)>15 || Math.abs(touch.clientY-heldTouch.y)>15)heldTouch=null;
+ },{passive:true});
+ button.addEventListener('touchend',event=>{
+  if(!heldTouch)return;
+  event.preventDefault();
+  heldTouch=null;
+  button.click();
+ },{passive:false});
+ button.addEventListener('touchcancel',()=>{heldTouch=null;});
 }
 app.addEventListener('click',event=>{
  if(!editing||event.target.closest('#editPanel'))return;
@@ -1809,7 +1878,7 @@ refreshComposerMeasure();
 // v21: atualização discreta no PRIMEIRO item das conversas recentes.
 // Nenhum redirecionamento automático, nem durante o force nem numa conversa aberta.
 // A consulta bypassa cache HTTP e volta a ser feita a cada abertura do menu.
-const GPT_FORCE_VERSION=30;
+const GPT_FORCE_VERSION=31;
 const DEFAULT_RECENT_TITLE='Quando usar por que e porque';
 let latestAvailableVersion=null;
 let updateCheckSequence=0;
