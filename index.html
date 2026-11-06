@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ChatGPT">
-<link rel="manifest" href="manifest.webmanifest?v=20">
-<link rel="apple-touch-icon" href="icon-192.png?v=20">
+<link rel="manifest" href="manifest.webmanifest?v=21">
+<link rel="apple-touch-icon" href="icon-192.png?v=21">
 <title>ChatGPT</title>
 <style>
 :root{color-scheme:dark;--bg:#000;--fg:#f5f5f5;--muted:#9b9b9d;--surface:#222224;--surface2:#2d2d30;--outline:#38383b;--header-h:60px;--app-height:100dvh}
@@ -121,7 +121,13 @@ svg{display:block}
 .side-row{display:flex;align-items:center;gap:12px;font-size:16px;text-align:left;border-radius:11px;padding:12px 10px;min-height:43px}
 .side-row svg{width:20px;height:20px}
 .side-caption{margin:15px 10px 2px;color:#97979c;font-size:12px;font-weight:600}
-.side-row.recent{background:#2e2e32}
+/* v21: conversas recentes plausíveis com rolagem independente no menu */
+.recent-list{display:flex;flex-direction:column;gap:3px;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.recent-list::-webkit-scrollbar{display:none}
+.recent-list .side-row{flex:0 0 auto;display:block;width:100%;min-height:43px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:11px 10px}
+.recent-list .side-row.primary{background:#2e2e32}
+.recent-list .side-row:active{background:#353538}
+.recent-list .side-row.update-ready{background:#313135}
 .popover{position:absolute;z-index:11;top:calc(env(safe-area-inset-top,0px) + 60px);left:50%;transform:translateX(-50%);width:230px;border-radius:18px;background:#29292b;box-shadow:0 12px 36px rgba(0,0,0,.5);padding:8px;display:none}
 .popover.open{display:block}
 .popover button{width:100%;display:flex;align-items:center;justify-content:space-between;text-align:left;padding:12px;border-radius:10px;font-size:15px}
@@ -290,7 +296,7 @@ svg{display:block}
   </header>
   <main class="conversation" id="conversation" aria-label="Conversa">
     <section class="welcome" id="welcome">
-      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=20" alt="" aria-hidden="true">
+      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=21" alt="" aria-hidden="true">
       <h1 class="welcome-title" data-edit-key="welcome-title">Como posso ajudar?</h1>
     </section>
     <section class="messages" id="messages" aria-live="off"></section>
@@ -322,7 +328,18 @@ svg{display:block}
     <div class="side-top"><strong>ChatGPT</strong><button class="side-close" id="closeSidebar" type="button" aria-label="Fechar menu">×</button></div>
     <button class="side-row" id="sidebarNew" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-7M12 12 21 3m0 0h-6m6 0v6"/></svg>Nova conversa</button>
     <div class="side-caption">Recentes</div>
-    <button class="side-row recent" id="sidebarRecent" type="button">Lista de 100 animais</button>
+    <div class="recent-list" id="recentList" aria-label="Conversas recentes">
+      <button class="side-row recent primary" id="sidebarRecent" type="button">Quando usar por que e porque</button>
+      <button class="side-row recent" type="button">Como escrever um e-mail formal</button>
+      <button class="side-row recent" type="button">Receita de pão de queijo</button>
+      <button class="side-row recent" type="button">Dicas para entrevista de emprego</button>
+      <button class="side-row recent" type="button">Diferença entre mas e mais</button>
+      <button class="side-row recent" type="button">Como melhorar meu currículo</button>
+      <button class="side-row recent" type="button">O que é inteligência artificial</button>
+      <button class="side-row recent" type="button">Como calcular porcentagem</button>
+      <button class="side-row recent" type="button">Resumo da Revolução Francesa</button>
+      <button class="side-row recent" type="button">Ideias para organizar a rotina</button>
+    </div>
   </aside>
   <div class="popover" id="modelPopover"><button type="button" id="modelClose">ChatGPT <span>✓</span></button></div>
 
@@ -423,6 +440,7 @@ jumpButton.addEventListener('click',()=>{
 const messages=document.getElementById('messages');
 const menuButton=document.getElementById('menuButton');
 const sidebar=document.getElementById('sidePanel');
+const sidebarRecent=document.getElementById('sidebarRecent');
 const backdrop=document.getElementById('backdrop');
 const modelPopover=document.getElementById('modelPopover');
 const toast=document.getElementById('toast');
@@ -640,7 +658,7 @@ function parseRequest(question){
 }
 async function fetchListFile(category){
  if(!category||!/^[a-z0-9]+$/.test(category))throw Error('categoria invalida');
- const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=20&ts='+Date.now(),{cache:'no-store'});
+ const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=21&ts='+Date.now(),{cache:'no-store'});
  if(!response.ok)throw Error('lista nao disponivel');
  const raw=await response.text();
  return raw.replace(/^\uFEFF/,'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -750,7 +768,7 @@ function resetNewChat(){
  cancelGeneration();clearConfirmation();digits=[];visibleText='';selectedAnswerList=[];currentPosition=1;currentForce='';forceEmojiSpan=null;cancelReveal();
  prompt.value='';messages.replaceChildren();app.classList.remove('has-messages');
  scroller.scrollTop=0;updateComposer();closeOverlays();updateJumpButton();
- // Após encerrar uma conversa, podemos checar atualizações sem interromper o force.
+ // Verifica atualização sem redirecionar automaticamente, o menu oferece a opção.
  checkForUpdatedVersion();
 }
 async function sendRequest(){
@@ -826,12 +844,19 @@ async function sendRequest(){
 }
 form.addEventListener('submit',(e)=>{e.preventDefault();sendRequest();});
 function closeOverlays(){sidebar.classList.remove('open');backdrop.classList.remove('open');sidebar.setAttribute('aria-hidden','true');modelPopover.classList.remove('open');}
-menuButton.addEventListener('click',()=>{modelPopover.classList.remove('open');sidebar.classList.add('open');sidebar.setAttribute('aria-hidden','false');backdrop.classList.add('open');});
+menuButton.addEventListener('click',()=>{modelPopover.classList.remove('open');sidebar.classList.add('open');sidebar.setAttribute('aria-hidden','false');backdrop.classList.add('open');checkForUpdatedVersion();});
 document.getElementById('closeSidebar').addEventListener('click',closeOverlays);
 backdrop.addEventListener('click',closeOverlays);
 document.getElementById('newChatButton').addEventListener('click',resetNewChat);
 document.getElementById('sidebarNew').addEventListener('click',resetNewChat);
-document.getElementById('sidebarRecent').addEventListener('click',()=>{closeOverlays();if(!app.classList.contains('has-messages'))showToast('Nenhuma conversa recente');});
+// As demais entradas servem para representar um histórico de conversas, sem tocar no force.
+document.getElementById('recentList').addEventListener('click',event=>{
+ const button=event.target.closest('.side-row.recent');
+ if(!button)return;
+ if(button===sidebarRecent && latestAvailableVersion>GPT_FORCE_VERSION){applyAvailableUpdate();return;}
+ closeOverlays();
+ showToast('Conversa anterior indisponível');
+});
 document.getElementById('modelButton').addEventListener('click',()=>{sidebar.classList.remove('open');backdrop.classList.remove('open');modelPopover.classList.toggle('open');});
 document.getElementById('modelClose').addEventListener('click',closeOverlays);
 document.getElementById('addButton').addEventListener('click',()=>{if(didLongPress){didLongPress=false;return;}if(!editing){showToast('Conversa por texto');prompt.focus();}});
@@ -1404,28 +1429,57 @@ if('ResizeObserver' in window){
  new ResizeObserver(()=>refreshComposerMeasure()).observe(composerRegion);
 }
 refreshComposerMeasure();
-// v19: cache busting real da página HTML, além dos assets/listas.
-// Consultar um JSON pequeno com cache desativado permite abrir uma versão nova
-// mesmo que o PWA tenha sido iniciado por um antigo index.html?v=NN.
-// Nunca recarregar automaticamente durante a digitação ou apresentação.
-const GPT_FORCE_VERSION=20;
-let lastVersionCheckAt=0;
+// v21: atualização discreta no PRIMEIRO item das conversas recentes.
+// Nenhum redirecionamento automático, nem durante o force nem numa conversa aberta.
+// A consulta bypassa cache HTTP e volta a ser feita a cada abertura do menu.
+const GPT_FORCE_VERSION=21;
+const DEFAULT_RECENT_TITLE='Quando usar por que e porque';
+let latestAvailableVersion=null;
+let updateCheckSequence=0;
+function renderAvailableUpdate(version){
+ latestAvailableVersion=Number.isSafeInteger(version)&&version>GPT_FORCE_VERSION?version:null;
+ sidebarRecent.textContent=latestAvailableVersion?'Deseja atualizar o app':DEFAULT_RECENT_TITLE;
+ sidebarRecent.classList.toggle('update-ready',!!latestAvailableVersion);
+ sidebarRecent.setAttribute('aria-label',latestAvailableVersion?'Deseja atualizar o app, toque para atualizar':DEFAULT_RECENT_TITLE);
+}
 async function checkForUpdatedVersion(){
- if(location.protocol==='file:' || document.visibilityState==='hidden' || generating || editing || digits.length || app.classList.contains('has-messages') || document.activeElement===prompt)return;
- const now=Date.now();
- if(now-lastVersionCheckAt<15000)return;
- lastVersionCheckAt=now;
+ if(location.protocol==='file:'||document.visibilityState==='hidden')return;
+ const sequence=++updateCheckSequence;
  try{
-  const response=await fetch('version.json?ts='+now,{cache:'no-store'});
-  if(!response.ok)return;
+  const url=new URL('version.json',document.baseURI);
+  url.searchParams.set('ts',String(Date.now()));
+  const response=await fetch(url.href,{cache:'no-store'});
+  if(!response.ok)throw new Error('Sem acesso ao marcador de versão');
   const data=await response.json();
   const latest=Number(data.version);
-  if(!Number.isSafeInteger(latest) || latest<=GPT_FORCE_VERSION)return;
-  if(generating || editing || digits.length || app.classList.contains('has-messages') || document.activeElement===prompt)return;
-  const url=new URL('./index.html',location.href);
-  url.searchParams.set('v',String(latest));
+  if(!Number.isSafeInteger(latest)||latest<1)throw new Error('Marcador inválido');
+  if(sequence!==updateCheckSequence)return;
+  renderAvailableUpdate(latest);
+ }catch(error){
+  // A ausência de conexão nunca recarrega o app nem interfere na apresentação.
+ }
+}
+let updateInProgress=false;
+async function applyAvailableUpdate(){
+ if(updateInProgress||!latestAvailableVersion||latestAvailableVersion<=GPT_FORCE_VERSION)return;
+ updateInProgress=true;
+ const targetVersion=latestAvailableVersion;
+ const url=new URL('./index.html',document.baseURI);
+ url.searchParams.set('v',String(targetVersion));
+ url.searchParams.set('ts',String(Date.now()));
+ try{
+  // GitHub Pages pode publicar o version.json antes de propagar o index.html.
+  // Só navegamos depois de confirmar que a versão HTML já está disponível.
+  const response=await fetch(url.href,{cache:'no-store'});
+  if(!response.ok)throw new Error('Arquivo ainda indisponível');
+  const html=await response.text();
+  const match=html.match(/const GPT_FORCE_VERSION\s*=\s*(\d+)\s*;/);
+  if(!match||Number(match[1])<targetVersion)throw new Error('Publicação ainda em andamento');
   window.location.replace(url.href);
- }catch(error){/* Falha de conexão não impede o uso offline/cached */}
+ }catch(error){
+  updateInProgress=false;
+  showToast('Atualização ainda indisponível, tente novamente');
+ }
 }
 window.addEventListener('pageshow',()=>checkForUpdatedVersion());
 document.addEventListener('visibilitychange',()=>{
