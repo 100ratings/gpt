@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ChatGPT">
-<link rel="manifest" href="manifest.webmanifest?v=26">
-<link rel="apple-touch-icon" href="icon-192.png?v=26">
+<link rel="manifest" href="manifest.webmanifest?v=27">
+<link rel="apple-touch-icon" href="icon-192.png?v=27">
 <title>ChatGPT</title>
 <style>
 :root{color-scheme:dark;--bg:#000;--fg:#f5f5f5;--muted:#9b9b9d;--surface:#222224;--surface2:#2d2d30;--outline:#38383b;--header-h:60px;--app-height:100dvh}
@@ -150,8 +150,11 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
 
 
 /* Secret number confirmation remains overlay-only and reserves no space. */
-.secret-confirmation{position:absolute;right:16px;top:-14px;z-index:1;opacity:0;white-space:nowrap;font-size:10px;line-height:12px;color:#707074;pointer-events:none;transition:opacity .12s linear}
-.secret-confirmation.visible{opacity:1}
+/* Peek defaults reproduce v26 exactly. Its transform moves only the number. */
+.secret-confirmation{position:absolute;right:16px;top:-14px;z-index:1;opacity:0;white-space:nowrap;font-size:var(--peek-size,10px);line-height:1.2;color:#707074;pointer-events:none;transition:opacity .12s linear;transform:translate(var(--peek-x,0px),var(--peek-y,0px));-webkit-user-select:none;user-select:none}
+.secret-confirmation.visible,.secret-confirmation.preview-visible{opacity:var(--peek-opacity,1)}
+.secret-confirmation.preview-visible{color:#ddd;outline:1px dashed #ffd76e;outline-offset:3px;border-radius:2px}
+
 
 /* Adjustable vertical alignment, initially zero so v1 stays unchanged */
 [data-edit-key]{transform:translateY(var(--edit-y,0px))}
@@ -186,6 +189,12 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
 .edit-horizontal{display:flex;align-items:center;gap:8px;color:#c7c7cb;font-size:12px}
 .edit-horizontal .edit-arrow{flex:0 0 45px}
 .edit-horizontal .edit-axis{flex:1}
+.edit-peek-direct[hidden]{display:none!important}
+.edit-peek-direct{display:flex;gap:8px;align-items:center;flex-wrap:wrap;color:#c7c7cb;font-size:12px}
+.edit-peek-direct label{display:flex;align-items:center;gap:6px;min-width:0;flex:1}
+.edit-peek-direct label[hidden]{display:none!important}
+.edit-peek-direct input{min-width:0;max-width:110px;flex:1;background:#1b1b1d;border:1px solid #57575b;border-radius:8px;padding:9px 6px;color:#fff;font-size:14px;font-variant-numeric:tabular-nums}
+
 .reset-confirm[hidden]{display:none!important}
 .reset-confirm{position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.72)}
 .reset-card{background:#29292c;border:1px solid #56565a;border-radius:18px;width:min(100%,340px);padding:20px 18px 16px;box-shadow:0 14px 45px #000b}
@@ -366,7 +375,7 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
   </header>
   <main class="conversation" id="conversation" aria-label="Conversa">
     <section class="welcome" id="welcome">
-      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=26" alt="" aria-hidden="true">
+      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=27" alt="" aria-hidden="true">
       <h1 class="welcome-title" data-edit-key="welcome-title">Como posso ajudar?</h1>
     </section>
     <section class="messages" id="messages" aria-live="off"></section>
@@ -445,6 +454,11 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
       <span class="edit-axis">Posição horizontal dos 5 botões</span>
       <button class="edit-arrow" type="button" id="editLeft" aria-label="Mover botões da resposta um pixel para a esquerda">←</button>
       <button class="edit-arrow" type="button" id="editRight" aria-label="Mover botões da resposta um pixel para a direita">→</button>
+    </div>
+    <div class="edit-peek-direct" id="editPeekDirect" hidden>
+      <label id="editPeekXLabel" for="editPeekX">X <input id="editPeekX" type="number" min="-400" max="400" step="1" inputmode="numeric" aria-label="Peek: posição horizontal em pixels"></label>
+      <label id="editPeekYLabel" for="editPeekY">Y <input id="editPeekY" type="number" min="-650" max="650" step="1" inputmode="numeric" aria-label="Peek: posição vertical em pixels"></label>
+      <label id="editPeekValueLabel" for="editPeekValue" hidden>Valor <input id="editPeekValue" type="number" step="1" inputmode="numeric" aria-label="Peek: tamanho ou opacidade"></label>
     </div>
     <div class="edit-panel-bottom"><span id="editPixels">0 px, ajuste de 1 px por toque</span><button class="edit-reset" type="button" id="editReset">Restaurar padrões</button></div>
     <div class="edit-backup">
@@ -751,7 +765,7 @@ function parseRequest(question){
 }
 async function fetchListFile(category){
  if(!category||!/^[a-z0-9]+$/.test(category))throw Error('categoria invalida');
- const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=26&ts='+Date.now(),{cache:'no-store'});
+ const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=27&ts='+Date.now(),{cache:'no-store'});
  if(!response.ok)throw Error('lista nao disponivel');
  const raw=await response.text();
  return raw.replace(/^\uFEFF/,'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -1031,6 +1045,9 @@ const EDIT_SECTIONS={
   ['fade-height','Degradê inferior: altura'],
   ['fade-position','Degradê inferior: posição'],
   ['fade-opacity','Degradê inferior: opacidade'],
+  ['peek-position','Peek: posição horizontal e vertical'],
+  ['peek-size','Peek: tamanho do número'],
+  ['peek-opacity','Peek: opacidade'],
   ['composer-region','Barra inferior inteira'],
   ['composer','Campo de mensagem'],
   ['plus','Botão +'],
@@ -1083,6 +1100,17 @@ const DEFAULT_FADE_POSITION=12, MIN_FADE_POSITION=-100, MAX_FADE_POSITION=100;
 const DEFAULT_TOP_FADE_HEIGHT=140, MIN_TOP_FADE_HEIGHT=30, MAX_TOP_FADE_HEIGHT=320;
 const DEFAULT_TOP_FADE_POSITION=12, MIN_TOP_FADE_POSITION=-100, MAX_TOP_FADE_POSITION=100;
 const DEFAULT_FADE_OPACITY=85, DEFAULT_TOP_FADE_OPACITY=100;
+const PEEK_MIN_X=-400, PEEK_MAX_X=400, PEEK_MIN_Y=-650, PEEK_MAX_Y=650;
+const PEEK_MIN_SIZE=8, PEEK_MAX_SIZE=48;
+function cleanPeekCoordinate(value,min,max){return Number.isInteger(value)&&value>=min&&value<=max?value:0;}
+function cleanPeek(raw){
+ return {
+  closed:{x:cleanPeekCoordinate(raw?.closed?.x,PEEK_MIN_X,PEEK_MAX_X),y:cleanPeekCoordinate(raw?.closed?.y,PEEK_MIN_Y,PEEK_MAX_Y)},
+  open:{x:cleanPeekCoordinate(raw?.open?.x,PEEK_MIN_X,PEEK_MAX_X),y:cleanPeekCoordinate(raw?.open?.y,PEEK_MIN_Y,PEEK_MAX_Y)},
+  size:Number.isInteger(raw?.size)&&raw.size>=PEEK_MIN_SIZE&&raw.size<=PEEK_MAX_SIZE?raw.size:10,
+  opacity:cleanOpacity(raw?.opacity,100)
+ };
+}
 function cleanOpacity(value,defaultValue){
  return Number.isInteger(value)&&value>=0&&value<=100?value:defaultValue;
 }
@@ -1121,10 +1149,11 @@ function cleanProfiles(raw){
   topFadeHeight:cleanTopFadeHeight(raw?.topFadeHeight),
   topFadePosition:cleanTopFadePosition(raw?.topFadePosition),
   fadeOpacity:cleanOpacity(raw?.fadeOpacity,DEFAULT_FADE_OPACITY),
-  topFadeOpacity:cleanOpacity(raw?.topFadeOpacity,DEFAULT_TOP_FADE_OPACITY)
+  topFadeOpacity:cleanOpacity(raw?.topFadeOpacity,DEFAULT_TOP_FADE_OPACITY),
+  peek:cleanPeek(raw?.peek)
  };
 }
-function cloneProfiles(value){return {shared:{...value.shared},closed:{...value.closed},open:{...value.open},fontPx:value.fontPx,listGapPx:value.listGapPx,actionsX:value.actionsX,actionGapPx:value.actionGapPx,actionSizes:[...value.actionSizes],fadeHeight:value.fadeHeight,fadePosition:value.fadePosition,topFadeHeight:value.topFadeHeight,topFadePosition:value.topFadePosition,fadeOpacity:value.fadeOpacity,topFadeOpacity:value.topFadeOpacity};}
+function cloneProfiles(value){return {shared:{...value.shared},closed:{...value.closed},open:{...value.open},fontPx:value.fontPx,listGapPx:value.listGapPx,actionsX:value.actionsX,actionGapPx:value.actionGapPx,actionSizes:[...value.actionSizes],fadeHeight:value.fadeHeight,fadePosition:value.fadePosition,topFadeHeight:value.topFadeHeight,topFadePosition:value.topFadePosition,fadeOpacity:value.fadeOpacity,topFadeOpacity:value.topFadeOpacity,peek:{closed:{...value.peek.closed},open:{...value.peek.open},size:value.peek.size,opacity:value.peek.opacity}};}
 let savedOffsets=cleanProfiles({});
 try{
  const existing=localStorage.getItem(STORAGE_KEY);
@@ -1151,6 +1180,10 @@ const TOP_FADE_HEIGHT_KEY='top-fade-height';
 const TOP_FADE_POSITION_KEY='top-fade-position';
 const FADE_OPACITY_KEY='fade-opacity';
 const TOP_FADE_OPACITY_KEY='top-fade-opacity';
+const PEEK_POSITION_KEY='peek-position';
+const PEEK_SIZE_KEY='peek-size';
+const PEEK_OPACITY_KEY='peek-opacity';
+function isPeekSetting(key){return key===PEEK_POSITION_KEY||key===PEEK_SIZE_KEY||key===PEEK_OPACITY_KEY;}
 const ACTION_GAP_KEY='response-action-gap';
 const ACTION_SIZE_PREFIX='response-action-size-';
 function actionSizeIndex(key){
@@ -1164,6 +1197,14 @@ const editDownButton=document.getElementById('editDown');
 const editLeftButton=document.getElementById('editLeft');
 const editRightButton=document.getElementById('editRight');
 const editHorizontal=document.getElementById('editHorizontal');
+const editAxis=editHorizontal.querySelector('.edit-axis');
+const editPeekDirect=document.getElementById('editPeekDirect');
+const editPeekXLabel=document.getElementById('editPeekXLabel');
+const editPeekYLabel=document.getElementById('editPeekYLabel');
+const editPeekValueLabel=document.getElementById('editPeekValueLabel');
+const editPeekX=document.getElementById('editPeekX');
+const editPeekY=document.getElementById('editPeekY');
+const editPeekValue=document.getElementById('editPeekValue');
 const resetConfirm=document.getElementById('resetConfirm');
 function applyActionsPresentation(node,offsets){
  if(!node)return;
@@ -1193,6 +1234,35 @@ function redrawOffsets(){
  topAlphas.forEach((alpha,index)=>app.style.setProperty('--mask-top-'+index,(1-(1-alpha)*topStrength).toFixed(3)));
  bottomAlphas.forEach((alpha,index)=>app.style.setProperty('--mask-bottom-'+(index+1),(1-(1-alpha)*bottomStrength).toFixed(3)));
  app.style.setProperty('--top-fade-strength',String(topStrength));
+ const peekCoordinates=offsets.peek[editing?selectedMode:(keyboardIsOpen?'open':'closed')];
+ secretConfirmation.style.setProperty('--peek-x',peekCoordinates.x+'px');
+ secretConfirmation.style.setProperty('--peek-y',peekCoordinates.y+'px');
+ secretConfirmation.style.setProperty('--peek-size',offsets.peek.size+'px');
+ secretConfirmation.style.setProperty('--peek-opacity',String(offsets.peek.opacity/100));
+ const peekPreview=editing&&isPeekSetting(selectedElement);
+ if(peekPreview){
+  clearTimeout(confirmationTimer);confirmationTimer=null;
+  secretConfirmation.textContent='23';
+  secretConfirmation.classList.remove('visible');
+  secretConfirmation.classList.add('preview-visible');
+ }else if(secretConfirmation.classList.contains('preview-visible')){
+  secretConfirmation.classList.remove('preview-visible');
+  secretConfirmation.textContent='';
+ }
+ editPeekDirect.hidden=!peekPreview;
+ editPeekXLabel.hidden=selectedElement!==PEEK_POSITION_KEY;
+ editPeekYLabel.hidden=selectedElement!==PEEK_POSITION_KEY;
+ editPeekValueLabel.hidden=selectedElement===PEEK_POSITION_KEY;
+ if(peekPreview){
+  if(selectedElement===PEEK_POSITION_KEY){
+   editPeekX.value=String(peekCoordinates.x);editPeekY.value=String(peekCoordinates.y);
+  }else{
+   editPeekValue.value=String(selectedElement===PEEK_SIZE_KEY?offsets.peek.size:offsets.peek.opacity);
+   editPeekValue.min=selectedElement===PEEK_SIZE_KEY?String(PEEK_MIN_SIZE):'0';
+   editPeekValue.max=selectedElement===PEEK_SIZE_KEY?String(PEEK_MAX_SIZE):'100';
+   editPeekValueLabel.firstChild.textContent=selectedElement===PEEK_SIZE_KEY?'Tamanho (px) ':'Opacidade (%) ';
+  }
+ }
  const displayedMode=editing?selectedMode:(keyboardIsOpen?'open':'closed');
  for(const node of editableNodes){
   const key=node.dataset.editKey;
@@ -1205,7 +1275,8 @@ function redrawOffsets(){
   applyActionsPresentation(actionBar,offsets);
   actionBar.classList.toggle('edit-selected',editing&&isActionSetting(selectedElement));
  }
- editHorizontal.hidden=!(editing&&selectedElement===RESPONSE_ACTIONS_KEY);
+ editHorizontal.hidden=!(editing&&(selectedElement===RESPONSE_ACTIONS_KEY||selectedElement===PEEK_POSITION_KEY));
+ editAxis.textContent=selectedElement===PEEK_POSITION_KEY?'Peek: esquerda / direita':'Posição horizontal dos 5 botões';
  const adjustingFont=selectedElement===TEXT_SIZE_KEY;
  const adjustingListSpacing=selectedElement===LIST_SPACING_KEY;
  app.classList.toggle('text-size-edit-selected',editing&&adjustingFont);
@@ -1243,6 +1314,19 @@ function redrawOffsets(){
   editPixels.textContent=draftOffsets.topFadeOpacity+'% · opacidade do degradê superior';
   editUpButton.setAttribute('aria-label','Aumentar opacidade superior em um ponto percentual');
   editDownButton.setAttribute('aria-label','Diminuir opacidade superior em um ponto percentual');
+ }else if(selectedElement===PEEK_POSITION_KEY){
+  const coords=draftOffsets.peek[selectedMode];
+  editPixels.textContent='↑↓ '+coords.y+' px · ←→ '+coords.x+' px · teclado '+(selectedMode==='open'?'aberto':'fechado');
+  editUpButton.setAttribute('aria-label','Mover peek para cima 1 pixel');
+  editDownButton.setAttribute('aria-label','Mover peek para baixo 1 pixel');
+ }else if(selectedElement===PEEK_SIZE_KEY){
+  editPixels.textContent=draftOffsets.peek.size+' px · tamanho do peek';
+  editUpButton.setAttribute('aria-label','Aumentar peek 1 pixel');
+  editDownButton.setAttribute('aria-label','Diminuir peek 1 pixel');
+ }else if(selectedElement===PEEK_OPACITY_KEY){
+  editPixels.textContent=draftOffsets.peek.opacity+'% · opacidade do peek';
+  editUpButton.setAttribute('aria-label','Aumentar opacidade do peek em 1%');
+  editDownButton.setAttribute('aria-label','Diminuir opacidade do peek em 1%');
  }else if(selectedElement===ACTION_GAP_KEY){
   editPixels.textContent=draftOffsets.actionGapPx+' px · espaço entre cada botão';
   editUpButton.setAttribute('aria-label','Aumentar espaço entre botões em um pixel');
@@ -1278,6 +1362,12 @@ function redrawOffsets(){
      ? '↑ aumenta e ↓ diminui a intensidade do degradê inferior de 1 em 1%, sem esconder a lista sob o campo.'
    :selectedElement===TOP_FADE_OPACITY_KEY
      ? '↑ aumenta e ↓ diminui a intensidade do degradê superior de 1 em 1%.'
+   :selectedElement===PEEK_POSITION_KEY
+     ? 'O número 23 aparece como prévia. ↑ ↓ ← → movem em passos de 1 px, separadamente para teclado aberto ou fechado. Use X e Y para saltos maiores.'
+   :selectedElement===PEEK_SIZE_KEY
+     ? 'O número 23 aparece como prévia. Ajuste o tamanho de 8 a 48 pixels, com 1 px por toque ou valor direto.'
+   :selectedElement===PEEK_OPACITY_KEY
+     ? 'O número 23 aparece como prévia. Ajuste a opacidade de 0% a 100%, com 1% por toque ou valor direto.'
    :selectedElement===RESPONSE_ACTIONS_KEY
      ? '↑ ↓ ← → deslocam os cinco botões reais em passos de 1 px. Gere uma resposta antes de ajustar.'
    :selectedElement===ACTION_GAP_KEY
@@ -1290,7 +1380,7 @@ function redrawOffsets(){
  }
 }
 function chooseEditElement(key){
- if(key!==TEXT_SIZE_KEY&&key!==LIST_SPACING_KEY&&key!==FADE_HEIGHT_KEY&&key!==FADE_POSITION_KEY&&key!==TOP_FADE_HEIGHT_KEY&&key!==TOP_FADE_POSITION_KEY&&key!==FADE_OPACITY_KEY&&key!==TOP_FADE_OPACITY_KEY&&!isActionSetting(key)&&!editableKeys.has(key))return;
+ if(key!==TEXT_SIZE_KEY&&key!==LIST_SPACING_KEY&&key!==FADE_HEIGHT_KEY&&key!==FADE_POSITION_KEY&&key!==TOP_FADE_HEIGHT_KEY&&key!==TOP_FADE_POSITION_KEY&&key!==FADE_OPACITY_KEY&&key!==TOP_FADE_OPACITY_KEY&&!isActionSetting(key)&&!isPeekSetting(key)&&!editableKeys.has(key))return;
  const section=EDIT_SECTION_BY_KEY.get(key);
  if(!section)return;
  if(editSection.value!==section){editSection.value=section;populateEditTargets(section);}
@@ -1312,7 +1402,7 @@ function beginEdit(){
  resetConfirm.hidden=true;
  editBackupStatus.classList.remove('highlight');
  editBackupStatus.textContent='Exportar cria um backup, importar permite conferir antes de salvar';
- editing=true;cancelReveal();didLongPress=true;draftOffsets=cloneProfiles(savedOffsets);
+ editing=true;cancelReveal();clearConfirmation();didLongPress=true;draftOffsets=cloneProfiles(savedOffsets);
  selectedMode=keyboardIsOpen?'open':'closed';
  app.classList.add('is-editing');editPanel.hidden=false;
  chooseEditMode(selectedMode);chooseEditElement('composer-region');
@@ -1364,6 +1454,12 @@ editUpButton.addEventListener('click',()=>{
   draftOffsets.fadeOpacity=Math.min(100,draftOffsets.fadeOpacity+1);
  }else if(selectedElement===TOP_FADE_OPACITY_KEY){
   draftOffsets.topFadeOpacity=Math.min(100,draftOffsets.topFadeOpacity+1);
+ }else if(selectedElement===PEEK_POSITION_KEY){
+  draftOffsets.peek[selectedMode].y=Math.max(PEEK_MIN_Y,draftOffsets.peek[selectedMode].y-1);
+ }else if(selectedElement===PEEK_SIZE_KEY){
+  draftOffsets.peek.size=Math.min(PEEK_MAX_SIZE,draftOffsets.peek.size+1);
+ }else if(selectedElement===PEEK_OPACITY_KEY){
+  draftOffsets.peek.opacity=Math.min(100,draftOffsets.peek.opacity+1);
  }else if(selectedElement===ACTION_GAP_KEY){
   draftOffsets.actionGapPx=Math.min(MAX_ACTION_GAP,draftOffsets.actionGapPx+1);
  }else if(actionSizeIndex(selectedElement)>=0){
@@ -1392,6 +1488,12 @@ editDownButton.addEventListener('click',()=>{
   draftOffsets.fadeOpacity=Math.max(0,draftOffsets.fadeOpacity-1);
  }else if(selectedElement===TOP_FADE_OPACITY_KEY){
   draftOffsets.topFadeOpacity=Math.max(0,draftOffsets.topFadeOpacity-1);
+ }else if(selectedElement===PEEK_POSITION_KEY){
+  draftOffsets.peek[selectedMode].y=Math.min(PEEK_MAX_Y,draftOffsets.peek[selectedMode].y+1);
+ }else if(selectedElement===PEEK_SIZE_KEY){
+  draftOffsets.peek.size=Math.max(PEEK_MIN_SIZE,draftOffsets.peek.size-1);
+ }else if(selectedElement===PEEK_OPACITY_KEY){
+  draftOffsets.peek.opacity=Math.max(0,draftOffsets.peek.opacity-1);
  }else if(selectedElement===ACTION_GAP_KEY){
   draftOffsets.actionGapPx=Math.max(MIN_ACTION_GAP,draftOffsets.actionGapPx-1);
  }else if(actionSizeIndex(selectedElement)>=0){
@@ -1404,13 +1506,29 @@ editDownButton.addEventListener('click',()=>{
  redrawOffsets();
 });
 editLeftButton.addEventListener('click',()=>{
- if(!editing||selectedElement!==RESPONSE_ACTIONS_KEY)return;
+ if(!editing)return;
+ if(selectedElement===PEEK_POSITION_KEY){draftOffsets.peek[selectedMode].x=Math.max(PEEK_MIN_X,draftOffsets.peek[selectedMode].x-1);redrawOffsets();return;}
+ if(selectedElement!==RESPONSE_ACTIONS_KEY)return;
  draftOffsets.actionsX=Math.max(-150,draftOffsets.actionsX-1);redrawOffsets();
 });
 editRightButton.addEventListener('click',()=>{
- if(!editing||selectedElement!==RESPONSE_ACTIONS_KEY)return;
+ if(!editing)return;
+ if(selectedElement===PEEK_POSITION_KEY){draftOffsets.peek[selectedMode].x=Math.min(PEEK_MAX_X,draftOffsets.peek[selectedMode].x+1);redrawOffsets();return;}
+ if(selectedElement!==RESPONSE_ACTIONS_KEY)return;
  draftOffsets.actionsX=Math.min(150,draftOffsets.actionsX+1);redrawOffsets();
 });
+// Exact-value controls for rapid changes, while arrows remain precise 1px/1% nudges.
+function applyPeekDirectValue(value,part){
+ if(!editing||!isPeekSetting(selectedElement)||!Number.isInteger(value))return;
+ if(part==='x'&&selectedElement===PEEK_POSITION_KEY&&value>=PEEK_MIN_X&&value<=PEEK_MAX_X)draftOffsets.peek[selectedMode].x=value;
+ else if(part==='y'&&selectedElement===PEEK_POSITION_KEY&&value>=PEEK_MIN_Y&&value<=PEEK_MAX_Y)draftOffsets.peek[selectedMode].y=value;
+ else if(part==='value'&&selectedElement===PEEK_SIZE_KEY&&value>=PEEK_MIN_SIZE&&value<=PEEK_MAX_SIZE)draftOffsets.peek.size=value;
+ else if(part==='value'&&selectedElement===PEEK_OPACITY_KEY&&value>=0&&value<=100)draftOffsets.peek.opacity=value;
+ redrawOffsets();
+}
+for(const [node,part] of [[editPeekX,'x'],[editPeekY,'y'],[editPeekValue,'value']]){
+ node.addEventListener('change',()=>applyPeekDirectValue(Number(node.value),part));
+}
 // A versão do arquivo de configurações é independente da versão do site.
 const LAYOUT_BACKUP_FORMAT='gpt-force-layout';
 const LAYOUT_BACKUP_SCHEMA=1;
@@ -1419,7 +1537,7 @@ function makeLayoutBackup(){
  return {
   format:LAYOUT_BACKUP_FORMAT,
   schemaVersion:LAYOUT_BACKUP_SCHEMA,
-  appVersion:26,
+  appVersion:27,
   exportedAt:new Date().toISOString(),
   settings:cloneProfiles(editing?draftOffsets:savedOffsets)
  };
@@ -1439,6 +1557,16 @@ function validateLayoutBackup(data){
  const normalized=cleanProfiles(raw);
  const numericKeys=['fontPx','listGapPx','actionsX','actionGapPx','fadeHeight','fadePosition','topFadeHeight','topFadePosition'];
  const optionalOpacityKeys=['fadeOpacity','topFadeOpacity'];
+ if(raw.peek!==undefined){
+  const peek=raw.peek;
+  if(!peek||typeof peek!=='object'||Array.isArray(peek)||!Number.isInteger(peek.size)||peek.size!==normalized.peek.size||!Number.isInteger(peek.opacity)||peek.opacity!==normalized.peek.opacity)throw new Error('Peek inválido');
+  for(const mode of ['closed','open']){
+   if(!peek[mode]||typeof peek[mode]!=='object'||Array.isArray(peek[mode]))throw new Error('Posição do peek ausente');
+   for(const axis of ['x','y']){
+    if(!Number.isInteger(peek[mode][axis])||peek[mode][axis]!==normalized.peek[mode][axis])throw new Error('Posição do peek inválida');
+   }
+  }
+ }
  for(const key of numericKeys){
   if(!Number.isInteger(raw[key])||normalized[key]!==raw[key])throw new Error('Valor inválido em '+key);
  }
@@ -1575,7 +1703,7 @@ refreshComposerMeasure();
 // v21: atualização discreta no PRIMEIRO item das conversas recentes.
 // Nenhum redirecionamento automático, nem durante o force nem numa conversa aberta.
 // A consulta bypassa cache HTTP e volta a ser feita a cada abertura do menu.
-const GPT_FORCE_VERSION=26;
+const GPT_FORCE_VERSION=27;
 const DEFAULT_RECENT_TITLE='Quando usar por que e porque';
 let latestAvailableVersion=null;
 let updateCheckSequence=0;
