@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ChatGPT">
-<link rel="manifest" href="manifest.webmanifest?v=35">
-<link rel="apple-touch-icon" href="icon-192.png?v=35">
+<link rel="manifest" href="manifest.webmanifest?v=36">
+<link rel="apple-touch-icon" href="icon-192.png?v=36">
 <title>ChatGPT</title>
 <style>
 :root{color-scheme:dark;--bg:#000;--fg:#f5f5f5;--muted:#9b9b9d;--surface:#222224;--surface2:#2d2d30;--outline:#38383b;--header-h:60px;--app-height:100dvh}
@@ -54,16 +54,18 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
 .assistant-message{padding:0 1px 2px 2px;color:#ececec;font-size:var(--conversation-font-size,16px);line-height:1.57;letter-spacing:.06px}
 .answer-intro{margin:0 0 12px;opacity:0;transition:opacity .22s}
 .answer-intro.visible{opacity:1}
-.answer-list{margin:0;padding-left:27px;list-style:decimal outside}
-.answer-list li{padding-left:3px;margin:0 0 var(--list-item-spacing,7px);min-height:20px;overflow-wrap:break-word;animation:appear .19s ease-out both}
-.answer-list li::marker{font-variant-numeric:tabular-nums;color:#e5e5e5}
-/* v32: hide ONLY the punctuation of the forced numbered item during the
-   five-second reveal countdown, preserving the list counter and layout. */
-.answer-list li.reveal-dot-hidden::marker{content:''}
-.answer-list li.reveal-dot-hidden{list-style:none;position:relative}
-.answer-list li.reveal-dot-hidden::before{content:attr(data-force-index);position:absolute;right:calc(100% + 7px);top:0;color:#e5e5e5;font-variant-numeric:tabular-nums;white-space:pre}
-.force-emoji{opacity:1;transition:opacity 1s linear}
-.force-emoji.fading{opacity:0}
+/* v36: every list number is a stable, explicit two-part marker.
+   The number and the dot never change layout, including on iOS Safari.
+   Only the dot's visibility is changed to signal the secret timer. */
+.answer-list{margin:0;padding-left:27px;list-style:none}
+.answer-list li{padding-left:3px;position:relative;margin:0 0 var(--list-item-spacing,7px);min-height:20px;overflow-wrap:break-word;animation:appear .19s ease-out both}
+.answer-list li::marker{content:none}
+.answer-list .list-number{position:absolute;right:calc(100% + 12px);top:0;white-space:nowrap;color:#e5e5e5;font-variant-numeric:tabular-nums;line-height:inherit;pointer-events:none;-webkit-user-select:none;user-select:none}
+@media(max-width:350px){.answer-list .list-number{right:calc(100% + 6px)}}
+.answer-list .list-dot{visibility:visible}
+.answer-list li.reveal-dot-hidden .list-dot{visibility:hidden}
+.force-emoji{opacity:1}
+.force-emoji.hidden{visibility:hidden;opacity:0}
 @keyframes appear{from{opacity:.15;transform:translateY(3px)}to{opacity:1;transform:none}}
 .thinking{display:flex;align-items:center;height:28px;margin-top:1px;color:#bcbcc0;font-size:var(--conversation-font-size,16px);line-height:1.45}
 /* The five buttons share one live presentation rule set. */
@@ -425,7 +427,7 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
   </header>
   <main class="conversation" id="conversation" aria-label="Conversa">
     <section class="welcome" id="welcome">
-      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=35" alt="" aria-hidden="true">
+      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=36" alt="" aria-hidden="true">
       <h1 class="welcome-title" data-edit-key="welcome-title">Como posso ajudar?</h1>
     </section>
     <section class="messages" id="messages" aria-live="off"></section>
@@ -608,6 +610,7 @@ let forceEmojiSpan=null;
 // Timer exclusivo para a revelação. Nunca depende de toques na tela.
 let revealTimer=null;
 let revealFadeTimer=null;
+let revealFadeAnimation=null;
 let revealPending=false;
 let revealMarkerItem=null;
 let revealEmojiTarget=null;
@@ -661,12 +664,14 @@ if(!window.PointerEvent)prompt.addEventListener('touchstart',event=>{
 function cancelReveal(){
  if(revealTimer!==null)clearTimeout(revealTimer);
  if(revealFadeTimer!==null)clearTimeout(revealFadeTimer);
+ if(revealFadeAnimation){revealFadeAnimation.cancel();revealFadeAnimation=null;}
  revealTimer=null;
  revealFadeTimer=null;
  // Aborted reveals must not leave a list item missing its period.
  if(revealMarkerItem)revealMarkerItem.classList.remove('reveal-dot-hidden');
  if(revealEmojiTarget && !revealEmojiTarget.classList.contains('hidden')){
   revealEmojiTarget.classList.remove('fading');
+  revealEmojiTarget.style.opacity='';revealEmojiTarget.style.transition='';
  }
  revealMarkerItem=null;
  revealEmojiTarget=null;
@@ -894,7 +899,7 @@ function parseRequest(question){
 }
 async function fetchListFile(category){
  if(!category||!/^[a-z0-9]+$/.test(category))throw Error('categoria invalida');
- const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=35&ts='+Date.now(),{cache:'no-store'});
+ const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=36&ts='+Date.now(),{cache:'no-store'});
  if(!response.ok)throw Error('lista nao disponivel');
  const raw=await response.text();
  return raw.replace(/^\uFEFF/,'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -1059,6 +1064,12 @@ async function sendRequest(){
      for(let j=0;j<batch&&count<selectedAnswerList.length;j++,count++){
        const li=document.createElement('li');
        const item=selectedAnswerList[count];
+       // The number and the dot are two real elements for reliable Safari visibility.
+       // All items use the SAME marker layout so the forced row never jumps.
+       const number=document.createElement('span');number.className='list-number';number.setAttribute('aria-hidden','true');
+       const digitsElement=document.createElement('span');digitsElement.textContent=String(count+1);
+       const dot=document.createElement('span');dot.className='list-dot';dot.textContent='.';
+       number.append(digitsElement,dot);li.append(number);
        if(count===currentPosition-1){
          li.dataset.forceIndex=String(currentPosition);
          const split=splitEmoji(item);
@@ -1068,8 +1079,8 @@ async function sendRequest(){
            li.appendChild(e);
            if(split.after)li.appendChild(document.createTextNode(split.after));
            forceEmojiSpan=e;
-         }else li.textContent=item;
-       }else li.textContent=item;
+         }else li.append(document.createTextNode(item));
+       }else li.append(document.createTextNode(item));
        reply.list.appendChild(li);
      }
      scrollToEnd();
@@ -1124,12 +1135,24 @@ function armEmojiReveal(){
  revealTimer=setTimeout(()=>{
   revealTimer=null;
   if(!emoji.isConnected||!item.isConnected){cancelReveal();return;}
-  // The period returns exactly five seconds after the button press.
+  // At exactly 5s the dot returns, then the emoji visibly fades over 1s.
   item.classList.remove('reveal-dot-hidden');
-  emoji.classList.add('fading');
+  // Web Animations provides an explicit timeline instead of a Safari CSS
+  // transition that might jump to zero after a hidden style/layout change.
+  if(typeof emoji.animate==='function'){
+   revealFadeAnimation=emoji.animate([{opacity:1},{opacity:0}],{
+    duration:1000,easing:'linear',fill:'forwards'
+   });
+  }else{
+   emoji.style.transition='opacity 1000ms linear';
+   void emoji.offsetWidth;
+   emoji.style.opacity='0';
+  }
   revealFadeTimer=setTimeout(()=>{
    revealFadeTimer=null;
    emoji.classList.add('hidden');
+   if(revealFadeAnimation){revealFadeAnimation.cancel();revealFadeAnimation=null;}
+   emoji.style.opacity='';emoji.style.transition='';
    revealPending=false;
    revealMarkerItem=null;
    revealEmojiTarget=null;
@@ -1820,7 +1843,7 @@ function makeLayoutBackup(){
  return {
   format:LAYOUT_BACKUP_FORMAT,
   schemaVersion:LAYOUT_BACKUP_SCHEMA,
-  appVersion:35,
+  appVersion:36,
   exportedAt:new Date().toISOString(),
   settings:cloneProfiles(editing?draftOffsets:savedOffsets)
  };
@@ -2018,7 +2041,7 @@ refreshComposerMeasure();
 // v21: atualização discreta no PRIMEIRO item das conversas recentes.
 // Nenhum redirecionamento automático, nem durante o force nem numa conversa aberta.
 // A consulta bypassa cache HTTP e volta a ser feita a cada abertura do menu.
-const GPT_FORCE_VERSION=35;
+const GPT_FORCE_VERSION=36;
 const DEFAULT_RECENT_TITLE='Quando usar por que e porque';
 let latestAvailableVersion=null;
 let updateCheckSequence=0;
