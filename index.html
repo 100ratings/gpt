@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ChatGPT">
-<link rel="manifest" href="manifest.webmanifest?v=23">
-<link rel="apple-touch-icon" href="icon-192.png?v=23">
+<link rel="manifest" href="manifest.webmanifest?v=24">
+<link rel="apple-touch-icon" href="icon-192.png?v=24">
 <title>ChatGPT</title>
 <style>
 :root{color-scheme:dark;--bg:#000;--fg:#f5f5f5;--muted:#9b9b9d;--surface:#222224;--surface2:#2d2d30;--outline:#38383b;--header-h:60px;--app-height:100dvh}
@@ -205,6 +205,10 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
 .app.is-editing [data-edit-key].edit-selected{outline:2px dashed #ffd76e;outline-offset:3px;border-radius:5px}
 @media(max-width:360px){.edit-panel{left:6px;right:6px}.edit-panel .edit-arrow{min-width:36px}}
 
+/* v24: the full scroll surface reaches the bottom of the screen, including
+   the iPhone safe area behind the footer, with no solid black bar at the edge.
+   The composer remains above the home indicator, preserving tap positions. */
+.app.has-messages{padding-bottom:0}
 /* v22: the transcript now also extends BEHIND the transparent header.
    On initial load, compensate for the removed header's flow height so the first
    user bubble stays in the same readable position as before. During scrolling,
@@ -228,10 +232,10 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
   rgba(0,0,0,var(--mask-top-4,.90)) 156px,
   #000 188px,
   #000 calc(100% - var(--composer-real-height,88px) - var(--fade-height,140px) + var(--fade-position,12px)),
-  rgba(0,0,0,var(--mask-bottom-1,.74)) calc(100% - var(--composer-real-height,88px) - (var(--fade-height,140px) * .45) + var(--fade-position,12px)),
-  rgba(0,0,0,var(--mask-bottom-2,.48)) calc(100% - var(--composer-real-height,88px) + var(--fade-position,12px)),
-  rgba(0,0,0,var(--mask-bottom-3,.25)) calc(100% - (var(--composer-real-height,88px) * .40)),
-  rgba(0,0,0,var(--mask-bottom-4,.14)) 100%);
+  rgba(0,0,0,var(--mask-bottom-1,.93)) calc(100% - var(--composer-real-height,88px) - (var(--fade-height,140px) * .45) + var(--fade-position,12px)),
+  rgba(0,0,0,var(--mask-bottom-2,.84)) calc(100% - var(--composer-real-height,88px) + var(--fade-position,12px)),
+  rgba(0,0,0,var(--mask-bottom-3,.73)) calc(100% - (var(--composer-real-height,88px) * .40)),
+  rgba(0,0,0,var(--mask-bottom-4,.66)) 100%);
  mask-image:linear-gradient(to bottom,
   rgba(0,0,0,var(--mask-top-0,.10)) 0px,
   rgba(0,0,0,var(--mask-top-1,.23)) 50px,
@@ -240,10 +244,10 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
   rgba(0,0,0,var(--mask-top-4,.90)) 156px,
   #000 188px,
   #000 calc(100% - var(--composer-real-height,88px) - var(--fade-height,140px) + var(--fade-position,12px)),
-  rgba(0,0,0,var(--mask-bottom-1,.74)) calc(100% - var(--composer-real-height,88px) - (var(--fade-height,140px) * .45) + var(--fade-position,12px)),
-  rgba(0,0,0,var(--mask-bottom-2,.48)) calc(100% - var(--composer-real-height,88px) + var(--fade-position,12px)),
-  rgba(0,0,0,var(--mask-bottom-3,.25)) calc(100% - (var(--composer-real-height,88px) * .40)),
-  rgba(0,0,0,var(--mask-bottom-4,.14)) 100%);
+  rgba(0,0,0,var(--mask-bottom-1,.93)) calc(100% - var(--composer-real-height,88px) - (var(--fade-height,140px) * .45) + var(--fade-position,12px)),
+  rgba(0,0,0,var(--mask-bottom-2,.84)) calc(100% - var(--composer-real-height,88px) + var(--fade-position,12px)),
+  rgba(0,0,0,var(--mask-bottom-3,.73)) calc(100% - (var(--composer-real-height,88px) * .40)),
+  rgba(0,0,0,var(--mask-bottom-4,.66)) 100%);
 }
 .app.has-messages .messages{
  padding-top:calc(11px + env(safe-area-inset-top,0px) + var(--header-h));
@@ -352,7 +356,7 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
   </header>
   <main class="conversation" id="conversation" aria-label="Conversa">
     <section class="welcome" id="welcome">
-      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=23" alt="" aria-hidden="true">
+      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=24" alt="" aria-hidden="true">
       <h1 class="welcome-title" data-edit-key="welcome-title">Como posso ajudar?</h1>
     </section>
     <section class="messages" id="messages" aria-live="off"></section>
@@ -714,7 +718,7 @@ function parseRequest(question){
 }
 async function fetchListFile(category){
  if(!category||!/^[a-z0-9]+$/.test(category))throw Error('categoria invalida');
- const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=23&ts='+Date.now(),{cache:'no-store'});
+ const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=24&ts='+Date.now(),{cache:'no-store'});
  if(!response.ok)throw Error('lista nao disponivel');
  const raw=await response.text();
  return raw.replace(/^\uFEFF/,'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -1143,7 +1147,9 @@ function redrawOffsets(){
  const bottomStrength=offsets.fadeOpacity/100;
  const topStrength=offsets.topFadeOpacity/100;
  const topAlphas=[.10,.23,.38,.65,.90];
- const bottomAlphas=[.74,.48,.25,.14];
+ // v24: bottom fade NO LONGER becomes a black/near-invisible strip.
+ // Even at 100%, content remains visible under the prompt and the footer.
+ const bottomAlphas=[.93,.84,.73,.66];
  topAlphas.forEach((alpha,index)=>app.style.setProperty('--mask-top-'+index,(1-(1-alpha)*topStrength).toFixed(3)));
  bottomAlphas.forEach((alpha,index)=>app.style.setProperty('--mask-bottom-'+(index+1),(1-(1-alpha)*bottomStrength).toFixed(3)));
  app.style.setProperty('--top-fade-strength',String(topStrength));
@@ -1373,7 +1379,7 @@ function makeLayoutBackup(){
  return {
   format:LAYOUT_BACKUP_FORMAT,
   schemaVersion:LAYOUT_BACKUP_SCHEMA,
-  appVersion:23,
+  appVersion:24,
   exportedAt:new Date().toISOString(),
   settings:cloneProfiles(editing?draftOffsets:savedOffsets)
  };
@@ -1529,7 +1535,7 @@ refreshComposerMeasure();
 // v21: atualização discreta no PRIMEIRO item das conversas recentes.
 // Nenhum redirecionamento automático, nem durante o force nem numa conversa aberta.
 // A consulta bypassa cache HTTP e volta a ser feita a cada abertura do menu.
-const GPT_FORCE_VERSION=23;
+const GPT_FORCE_VERSION=24;
 const DEFAULT_RECENT_TITLE='Quando usar por que e porque';
 let latestAvailableVersion=null;
 let updateCheckSequence=0;
