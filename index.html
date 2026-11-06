@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ChatGPT">
-<link rel="manifest" href="manifest.webmanifest?v=28">
-<link rel="apple-touch-icon" href="icon-192.png?v=28">
+<link rel="manifest" href="manifest.webmanifest?v=29">
+<link rel="apple-touch-icon" href="icon-192.png?v=29">
 <title>ChatGPT</title>
 <style>
 :root{color-scheme:dark;--bg:#000;--fg:#f5f5f5;--muted:#9b9b9d;--surface:#222224;--surface2:#2d2d30;--outline:#38383b;--header-h:60px;--app-height:100dvh}
@@ -229,24 +229,6 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
  .edit-panel.is-compact{max-height:calc(var(--app-height,100dvh) - 16px)}
  .edit-panel.dock-bottom{bottom:4px}
 }
-/* v28 landscape fallthrough for browsers ignoring manifest orientation.
-   CSS visually counter-rotates the portrait UI without changing ANY portrait
-   coordinates, header styles, or force logic. */
-@media (orientation:landscape) and (pointer:coarse) and (max-height:700px){
- .app{
-  top:0!important;left:100dvw!important;
-  width:100dvh!important;height:100dvw!important;
-  transform-origin:top left!important;
-  transform:rotate(90deg)!important;
- }
- .app.landscape-counter{
-  top:100dvh!important;left:0!important;
-  transform:rotate(-90deg)!important;
- }
- .app.has-messages:not(.keyboard-open){
-  height:100dvw!important;
- }
-}
 
 /* v24: the full scroll surface reaches the bottom of the screen, including
    the iPhone safe area behind the footer, with no solid black bar at the edge.
@@ -410,7 +392,7 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
   </header>
   <main class="conversation" id="conversation" aria-label="Conversa">
     <section class="welcome" id="welcome">
-      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=28" alt="" aria-hidden="true">
+      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=29" alt="" aria-hidden="true">
       <h1 class="welcome-title" data-edit-key="welcome-title">Como posso ajudar?</h1>
     </section>
     <section class="messages" id="messages" aria-live="off"></section>
@@ -838,7 +820,7 @@ function parseRequest(question){
 }
 async function fetchListFile(category){
  if(!category||!/^[a-z0-9]+$/.test(category))throw Error('categoria invalida');
- const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=28&ts='+Date.now(),{cache:'no-store'});
+ const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=29&ts='+Date.now(),{cache:'no-store'});
  if(!response.ok)throw Error('lista nao disponivel');
  const raw=await response.text();
  return raw.replace(/^\uFEFF/,'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -1634,7 +1616,7 @@ function makeLayoutBackup(){
  return {
   format:LAYOUT_BACKUP_FORMAT,
   schemaVersion:LAYOUT_BACKUP_SCHEMA,
-  appVersion:28,
+  appVersion:29,
   exportedAt:new Date().toISOString(),
   settings:cloneProfiles(editing?draftOffsets:savedOffsets)
  };
@@ -1760,20 +1742,17 @@ function resizeToViewport(){
  const vv=window.visualViewport;
  const h=Math.max(220,Math.round(vv?.height||window.innerHeight));
  const w=Math.round(vv?.width||window.innerWidth);
- const landscape=matchMedia('(pointer:coarse)').matches && window.innerWidth>window.innerHeight && window.innerHeight<700 && window.innerWidth>550;
- const apparentHeight=landscape?Math.max(h,w):h;
- app.classList.toggle('landscape-counter',landscape && ((window.orientation??screen.orientation?.angle??90)<0));
  const top=Math.round(vv?.offsetTop||0);
  const left=Math.round(vv?.offsetLeft||0);
  // Record the largest observed unoccluded viewport, including when Safari's
  // browser chrome expands or collapses; do not mistake toolbar changes for keyboard.
- if(apparentHeight>baselineHeight)baselineHeight=apparentHeight;
- const open=!landscape && h < baselineHeight-130;
+ if(h>baselineHeight)baselineHeight=h;
+ const open=h < baselineHeight-130;
  keyboardIsOpen=open;
- document.documentElement.style.setProperty('--app-height',apparentHeight+'px');
- document.documentElement.style.setProperty('--viewport-width',(landscape?h:w)+'px');
- document.documentElement.style.setProperty('--viewport-top',(landscape?0:top)+'px');
- document.documentElement.style.setProperty('--viewport-left',(landscape?0:left)+'px');
+ document.documentElement.style.setProperty('--app-height',h+'px');
+ document.documentElement.style.setProperty('--viewport-width',w+'px');
+ document.documentElement.style.setProperty('--viewport-top',top+'px');
+ document.documentElement.style.setProperty('--viewport-left',left+'px');
  app.classList.toggle('keyboard-open',open);
  editKeyboard.textContent=open?'Fechar teclado':'Ver com teclado';
  redrawOffsets();
@@ -1804,7 +1783,7 @@ refreshComposerMeasure();
 // v21: atualização discreta no PRIMEIRO item das conversas recentes.
 // Nenhum redirecionamento automático, nem durante o force nem numa conversa aberta.
 // A consulta bypassa cache HTTP e volta a ser feita a cada abertura do menu.
-const GPT_FORCE_VERSION=28;
+const GPT_FORCE_VERSION=29;
 const DEFAULT_RECENT_TITLE='Quando usar por que e porque';
 let latestAvailableVersion=null;
 let updateCheckSequence=0;
