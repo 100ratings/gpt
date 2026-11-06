@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ChatGPT">
-<link rel="manifest" href="manifest.webmanifest?v=19">
-<link rel="apple-touch-icon" href="icon-192.png?v=19">
+<link rel="manifest" href="manifest.webmanifest?v=20">
+<link rel="apple-touch-icon" href="icon-192.png?v=20">
 <title>ChatGPT</title>
 <style>
 :root{color-scheme:dark;--bg:#000;--fg:#f5f5f5;--muted:#9b9b9d;--surface:#222224;--surface2:#2d2d30;--outline:#38383b;--header-h:60px;--app-height:100dvh}
@@ -144,10 +144,23 @@ svg{display:block}
 .force-emoji.hidden{visibility:hidden}
 .add-button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 .edit-panel[hidden]{display:none!important}
-.edit-panel{position:absolute;top:calc(env(safe-area-inset-top,0px) + 64px);left:10px;right:10px;z-index:30;max-width:450px;margin:auto;background:#29292c;border:1px solid #48484b;border-radius:17px;box-shadow:0 12px 42px #000b;padding:13px;display:flex;flex-direction:column;gap:11px}
+.edit-panel{position:absolute;top:calc(env(safe-area-inset-top,0px) + 64px);left:10px;right:10px;z-index:30;max-width:450px;margin:auto;background:#29292c;border:1px solid #48484b;border-radius:17px;box-shadow:0 12px 42px #000b;padding:13px;display:flex;flex-direction:column;gap:10px;max-height:calc(var(--app-height,100dvh) - env(safe-area-inset-top,0px) - 80px);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 .edit-panel-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .edit-panel-top strong{font-size:15px;font-weight:650}
-.edit-panel .edit-save{background:#f1f1f2;color:#101012;border-radius:12px;padding:8px 14px;font-size:14px;font-weight:650}
+.edit-panel .edit-save{background:#f1f1f2;color:#101012;border-radius:12px;padding:9px 16px;font-size:14px;font-weight:650;min-height:40px}
+.edit-section-row{display:flex;flex-direction:column;gap:5px}
+.edit-section-row label{color:#c7c7cb;font-size:12px;font-weight:550}
+.edit-section-row select{width:100%}
+.edit-section-caption{margin:0;font-size:11px;color:#a5a5aa;line-height:1.35}
+.edit-mode-controls[hidden]{display:none!important}
+.edit-backup{display:flex;flex-direction:column;gap:7px;padding-top:10px;border-top:1px solid #4a4a4d}
+.edit-backup-title{font-size:12px;font-weight:600;color:#ededf0}
+.edit-backup-buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.edit-backup-buttons button{border:1px solid #66666b;background:#363639;min-height:42px;padding:9px 7px;border-radius:10px;font-size:13px;font-weight:570}
+.edit-backup-buttons button:active{background:#555559}
+.edit-backup-status{color:#a5a5aa;font-size:11px;line-height:1.4;margin:0}
+.edit-backup-status.highlight{color:#e8d7ab}
+
 .edit-panel-controls{display:flex;align-items:center;gap:7px}
 .edit-panel select{flex:1;min-width:0;background:#1b1b1d;color:#fff;border:1px solid #57575b;border-radius:9px;padding:10px 6px;font-size:14px;appearance:auto}
 .edit-panel .edit-arrow{border:1px solid #59595d;background:#3c3c3f;border-radius:9px;min-width:41px;height:40px;font-size:20px;font-weight:650}
@@ -277,7 +290,7 @@ svg{display:block}
   </header>
   <main class="conversation" id="conversation" aria-label="Conversa">
     <section class="welcome" id="welcome">
-      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=19" alt="" aria-hidden="true">
+      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=20" alt="" aria-hidden="true">
       <h1 class="welcome-title" data-edit-key="welcome-title">Como posso ajudar?</h1>
     </section>
     <section class="messages" id="messages" aria-live="off"></section>
@@ -315,48 +328,31 @@ svg{display:block}
 
   <div class="edit-panel" id="editPanel" hidden>
     <div class="edit-panel-top"><strong>Ajustar interface</strong><button class="edit-save" type="button" id="editSave">Salvar</button></div>
-    <div class="edit-mode-controls">
-      <label for="editMode">Barra inferior</label>
+    <div class="edit-section-row">
+      <label for="editSection">Área da tela</label>
+      <select id="editSection" aria-label="Área da tela para ajustar">
+        <option value="header">1 · Topo</option>
+        <option value="welcome">2 · Tela inicial</option>
+        <option value="conversation">3 · Mensagens e resposta</option>
+        <option value="bottom" selected>4 · Barra inferior</option>
+      </select>
+    </div>
+    <div class="edit-mode-controls" id="editModeControls">
+      <label for="editMode">Teclado</label>
       <select id="editMode" aria-label="Configuração da barra inferior">
-        <option value="closed">1 · Teclado fechado</option>
-        <option value="open">2 · Teclado aberto</option>
+        <option value="closed">Fechado</option>
+        <option value="open">Aberto</option>
       </select>
       <button class="edit-keyboard" type="button" id="editKeyboard">Ver com teclado</button>
     </div>
-    <div class="edit-mode-hint" id="editModeHint">Cada estado guarda seus próprios ajustes, sem afetar o outro</div>
-    <div class="edit-panel-controls">
-      <select id="editTarget" aria-label="Elemento para ajustar">
-        <option value="conversation-text-size">Tamanho: pergunta + lista + emojis</option>
-        <option value="list-item-spacing">Espaçamento entre itens da lista</option>
-        <option value="fade-height">Degradê inferior: altura</option>
-        <option value="fade-position">Degradê inferior: posição vertical</option>
-        <option value="top-fade-height">Degradê superior: altura</option>
-        <option value="top-fade-position">Degradê superior: posição vertical</option>
-        <option value="response-actions">Botões: mover conjunto ↑ ↓ ← →</option>
-        <option value="response-action-gap">Botões: espaçamento entre eles</option>
-        <option value="response-action-size-0">Botão 1: tamanho do Copiar</option>
-        <option value="response-action-size-1">Botão 2: tamanho da Avaliação</option>
-        <option value="response-action-size-2">Botão 3: tamanho do Áudio</option>
-        <option value="response-action-size-3">Botão 4: tamanho do Compartilhar</option>
-        <option value="response-action-size-4">Botão 5: tamanho dos três pontos</option>
-        <option value="jump">Seta para o final (↓)</option>
-        <option value="composer-region">Barra inferior inteira</option>
-        <option value="composer">Campo de mensagem</option>
-        <option value="plus">Botão +</option>
-        <option value="prompt">Texto Perguntar ao ChatGPT</option>
-        <option value="microphone">Microfone</option>
-        <option value="voice">Botão de voz</option>
-        <option value="send">Botão enviar</option>
-        <option value="footnote">Aviso inferior</option>
-        <option value="welcome-logo">Logotipo central</option>
-        <option value="welcome-title">Como posso ajudar?</option>
-        <option value="header">Barra superior inteira</option>
-        <option value="menu">Menu</option>
-        <option value="model">Título ChatGPT</option>
-        <option value="newchat">Nova conversa</option>
-      </select>
+    <div class="edit-mode-hint" id="editModeHint">Os ajustes da barra são independentes para cada estado do teclado</div>
+    <div class="edit-section-row">
+      <label for="editTarget">Elemento ou propriedade</label>
+      <div class="edit-panel-controls">
+        <select id="editTarget" aria-label="Elemento ou propriedade para ajustar"></select>
       <button class="edit-arrow" type="button" id="editUp" aria-label="Subir um pixel">↑</button>
       <button class="edit-arrow" type="button" id="editDown" aria-label="Descer um pixel">↓</button>
+      </div>
     </div>
     <div class="edit-horizontal" id="editHorizontal" hidden>
       <span class="edit-axis">Posição horizontal dos 5 botões</span>
@@ -364,6 +360,15 @@ svg{display:block}
       <button class="edit-arrow" type="button" id="editRight" aria-label="Mover botões da resposta um pixel para a direita">→</button>
     </div>
     <div class="edit-panel-bottom"><span id="editPixels">0 px, ajuste de 1 px por toque</span><button class="edit-reset" type="button" id="editReset">Restaurar padrões</button></div>
+    <div class="edit-backup">
+      <div class="edit-backup-title">Backup das configurações</div>
+      <div class="edit-backup-buttons">
+        <button type="button" id="editExport" aria-label="Exportar ajustes para um arquivo JSON">Exportar</button>
+        <button type="button" id="editImport" aria-label="Importar ajustes de um arquivo JSON">Importar</button>
+      </div>
+      <p class="edit-backup-status" id="editBackupStatus" aria-live="polite">Exportar cria um backup, importar permite conferir antes de salvar</p>
+      <input type="file" accept=".json,application/json" id="editImportFile" hidden aria-label="Selecionar arquivo de configurações">
+    </div>
   </div>
   <div class="reset-confirm" id="resetConfirm" role="dialog" aria-modal="true" aria-labelledby="resetTitle" hidden>
     <div class="reset-card">
@@ -635,7 +640,7 @@ function parseRequest(question){
 }
 async function fetchListFile(category){
  if(!category||!/^[a-z0-9]+$/.test(category))throw Error('categoria invalida');
- const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=19&ts='+Date.now(),{cache:'no-store'});
+ const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=20&ts='+Date.now(),{cache:'no-store'});
  if(!response.ok)throw Error('lista nao disponivel');
  const raw=await response.text();
  return raw.replace(/^\uFEFF/,'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -864,6 +869,60 @@ const editMode=document.getElementById('editMode');
 const editModeHint=document.getElementById('editModeHint');
 const editKeyboard=document.getElementById('editKeyboard');
 const editTarget=document.getElementById('editTarget');
+const editSection=document.getElementById('editSection');
+const editModeControls=document.getElementById('editModeControls');
+const editBackupStatus=document.getElementById('editBackupStatus');
+const editImportFile=document.getElementById('editImportFile');
+// Ordem visual de cima para baixo, com menos opções em cada seleção.
+// As chaves internas continuam exatamente as mesmas das versões anteriores.
+const EDIT_SECTIONS={
+ header:[
+  ['header','Barra superior inteira'],
+  ['menu','Menu'],
+  ['model','Título ChatGPT'],
+  ['newchat','Nova conversa'],
+  ['top-fade-height','Degradê superior: altura'],
+  ['top-fade-position','Degradê superior: posição']
+ ],
+ welcome:[
+  ['welcome-logo','Logotipo central'],
+  ['welcome-title','Como posso ajudar?']
+ ],
+ conversation:[
+  ['conversation-text-size','Tamanho: pergunta + lista + emojis'],
+  ['list-item-spacing','Espaçamento entre itens da lista'],
+  ['response-actions','Botões da resposta: mover conjunto'],
+  ['response-action-gap','Botões da resposta: espaçamento'],
+  ['response-action-size-0','Botão 1: tamanho do Copiar'],
+  ['response-action-size-1','Botão 2: tamanho da Avaliação'],
+  ['response-action-size-2','Botão 3: tamanho do Áudio'],
+  ['response-action-size-3','Botão 4: tamanho do Compartilhar'],
+  ['response-action-size-4','Botão 5: tamanho dos três pontos'],
+  ['jump','Seta para o final (↓)']
+ ],
+ bottom:[
+  ['fade-height','Degradê inferior: altura'],
+  ['fade-position','Degradê inferior: posição'],
+  ['composer-region','Barra inferior inteira'],
+  ['composer','Campo de mensagem'],
+  ['plus','Botão +'],
+  ['prompt','Texto Perguntar ao ChatGPT'],
+  ['microphone','Microfone'],
+  ['voice','Botão de voz'],
+  ['send','Botão enviar'],
+  ['footnote','Aviso inferior']
+ ]
+};
+const EDIT_SECTION_BY_KEY=new Map(Object.entries(EDIT_SECTIONS).flatMap(([section,items])=>items.map(([key])=>[key,section])));
+function populateEditTargets(section){
+ editTarget.replaceChildren();
+ for(const [key,label] of EDIT_SECTIONS[section]){
+  const option=document.createElement('option');
+  option.value=key;option.textContent=label;editTarget.appendChild(option);
+ }
+ editModeControls.hidden=section!=='bottom';
+}
+populateEditTargets('bottom');
 const editPixels=document.getElementById('editPixels');
 const addButton=document.getElementById('addButton');
 const editableNodes=[...document.querySelectorAll('[data-edit-key]')];
@@ -1076,6 +1135,9 @@ function redrawOffsets(){
 }
 function chooseEditElement(key){
  if(key!==TEXT_SIZE_KEY&&key!==LIST_SPACING_KEY&&key!==FADE_HEIGHT_KEY&&key!==FADE_POSITION_KEY&&key!==TOP_FADE_HEIGHT_KEY&&key!==TOP_FADE_POSITION_KEY&&!isActionSetting(key)&&!editableKeys.has(key))return;
+ const section=EDIT_SECTION_BY_KEY.get(key);
+ if(!section)return;
+ if(editSection.value!==section){editSection.value=section;populateEditTargets(section);}
  selectedElement=key;editTarget.value=key;
  for(const node of editableNodes)node.classList.toggle('edit-selected',key!==TEXT_SIZE_KEY&&key!==LIST_SPACING_KEY&&node.dataset.editKey===key);
  redrawOffsets();
@@ -1092,6 +1154,8 @@ function chooseEditMode(mode){
 }
 function beginEdit(){
  resetConfirm.hidden=true;
+ editBackupStatus.classList.remove('highlight');
+ editBackupStatus.textContent='Exportar cria um backup, importar permite conferir antes de salvar';
  editing=true;cancelReveal();didLongPress=true;draftOffsets=cloneProfiles(savedOffsets);
  selectedMode=keyboardIsOpen?'open':'closed';
  app.classList.add('is-editing');editPanel.hidden=false;
@@ -1120,6 +1184,12 @@ addButton.addEventListener('pointerdown',event=>{
 for(const action of ['pointerup','pointercancel','pointerleave'])addButton.addEventListener(action,()=>clearTimeout(pressTimer));
 addButton.addEventListener('contextmenu',event=>event.preventDefault());
 editMode.addEventListener('change',()=>chooseEditMode(editMode.value));
+editSection.addEventListener('change',()=>{
+ const section=editSection.value;
+ if(!Object.hasOwn(EDIT_SECTIONS,section))return;
+ populateEditTargets(section);
+ chooseEditElement(EDIT_SECTIONS[section][0][0]);
+});
 editTarget.addEventListener('change',()=>chooseEditElement(editTarget.value));
 editUpButton.addEventListener('click',()=>{
  if(selectedElement===TEXT_SIZE_KEY){
@@ -1176,6 +1246,91 @@ editLeftButton.addEventListener('click',()=>{
 editRightButton.addEventListener('click',()=>{
  if(!editing||selectedElement!==RESPONSE_ACTIONS_KEY)return;
  draftOffsets.actionsX=Math.min(150,draftOffsets.actionsX+1);redrawOffsets();
+});
+// A versão do arquivo de configurações é independente da versão do site.
+const LAYOUT_BACKUP_FORMAT='gpt-force-layout';
+const LAYOUT_BACKUP_SCHEMA=1;
+const BACKUP_MAX_BYTES=200000;
+function makeLayoutBackup(){
+ return {
+  format:LAYOUT_BACKUP_FORMAT,
+  schemaVersion:LAYOUT_BACKUP_SCHEMA,
+  appVersion:20,
+  exportedAt:new Date().toISOString(),
+  settings:cloneProfiles(editing?draftOffsets:savedOffsets)
+ };
+}
+function validateLayoutBackup(data){
+ if(!data||typeof data!=='object'||Array.isArray(data)||data.format!==LAYOUT_BACKUP_FORMAT||data.schemaVersion!==LAYOUT_BACKUP_SCHEMA){
+  throw new Error('Arquivo não é um backup compatível do GPT Force');
+ }
+ const raw=data.settings;
+ if(!raw||typeof raw!=='object'||Array.isArray(raw))throw new Error('Configurações ausentes');
+ for(const part of ['shared','closed','open']){
+  if(!raw[part]||typeof raw[part]!=='object'||Array.isArray(raw[part]))throw new Error('Configuração incompleta');
+  for(const value of Object.values(raw[part])){
+   if(!Number.isInteger(value)||Math.abs(value)>150)throw new Error('Posição inválida');
+  }
+ }
+ const normalized=cleanProfiles(raw);
+ const numericKeys=['fontPx','listGapPx','actionsX','actionGapPx','fadeHeight','fadePosition','topFadeHeight','topFadePosition'];
+ for(const key of numericKeys){
+  if(!Number.isInteger(raw[key])||normalized[key]!==raw[key])throw new Error('Valor inválido em '+key);
+ }
+ if(!Array.isArray(raw.actionSizes)||raw.actionSizes.length!==5||raw.actionSizes.some((v,i)=>!Number.isInteger(v)||v!==normalized.actionSizes[i])){
+  throw new Error('Tamanhos dos botões inválidos');
+ }
+ return normalized;
+}
+function setBackupStatus(message,emphasize=false){
+ editBackupStatus.textContent=message;
+ editBackupStatus.classList.toggle('highlight',emphasize);
+}
+function downloadLayoutBackup(file){
+ const url=URL.createObjectURL(file);
+ const anchor=document.createElement('a');
+ anchor.href=url;anchor.download=file.name;anchor.style.display='none';
+ document.body.appendChild(anchor);anchor.click();anchor.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
+document.getElementById('editExport').addEventListener('click',()=>{
+ const backup=makeLayoutBackup();
+ const stamp=new Date().toISOString().slice(0,10);
+ const filename='GPT_Force_Ajustes_'+stamp+'.json';
+ const json=JSON.stringify(backup,null,2)+'\n';
+ const file=new File([json],filename,{type:'application/json'});
+ setBackupStatus('Backup preparado com todos os ajustes e os dois estados do teclado',true);
+ // Na tela inicial do iPhone, a folha de compartilhamento oferece Salvar em Arquivos.
+ // No navegador comum, usar o download tradicional como alternativa.
+ if(typeof navigator.share==='function'&&typeof navigator.canShare==='function'&&navigator.canShare({files:[file]})){
+  navigator.share({files:[file],title:'Configurações do GPT Force'}).catch(error=>{
+   if(error?.name!=='AbortError')downloadLayoutBackup(file);
+  });
+ }else downloadLayoutBackup(file);
+});
+document.getElementById('editImport').addEventListener('click',()=>{
+ editImportFile.value='';
+ editImportFile.click();
+});
+editImportFile.addEventListener('change',async()=>{
+ const file=editImportFile.files?.[0];
+ if(!file)return;
+ if(file.size>BACKUP_MAX_BYTES){
+  setBackupStatus('Arquivo muito grande, nenhum ajuste foi alterado',true);
+  return;
+ }
+ try{
+  const parsed=JSON.parse(await file.text());
+  const imported=validateLayoutBackup(parsed);
+  if(!editing)return;
+  draftOffsets=imported;
+  redrawOffsets();
+  setBackupStatus('Prévia importada, toque em Salvar para confirmar',true);
+  showToast('Ajustes importados, toque em Salvar');
+ }catch(error){
+  setBackupStatus('Arquivo inválido, seus ajustes foram preservados',true);
+  showToast('Não foi possível importar este arquivo');
+ }
 });
 document.getElementById('editSave').addEventListener('click',()=>stopEdit(true));
 // Never reset from an accidental tap; require a second intentional confirmation.
@@ -1253,7 +1408,7 @@ refreshComposerMeasure();
 // Consultar um JSON pequeno com cache desativado permite abrir uma versão nova
 // mesmo que o PWA tenha sido iniciado por um antigo index.html?v=NN.
 // Nunca recarregar automaticamente durante a digitação ou apresentação.
-const GPT_FORCE_VERSION=19;
+const GPT_FORCE_VERSION=20;
 let lastVersionCheckAt=0;
 async function checkForUpdatedVersion(){
  if(location.protocol==='file:' || document.visibilityState==='hidden' || generating || editing || digits.length || app.classList.contains('has-messages') || document.activeElement===prompt)return;
