@@ -1,29 +1,45 @@
-# GPT Force v27 | Peek configurável
+# GPT Force v28 | Campo corrigido, indicador discreto e editor compacto
 
-## O que mudou
-- O número do peek (exemplo: OP = 23) continua aparecendo por 2 segundos após o código secreto
-- Editor: Área "4 · Barra inferior", com novas propriedades "Peek: posição horizontal e vertical", "Peek: tamanho do número" e "Peek: opacidade"
-- Posição X/Y ajustável de 1 em 1 pixel pelas setas (↑↓←→), ou diretamente por valores numéricos
-- Perfil de posição independente para teclado "Fechado" e "Aberto", como os demais elementos da barra
-- Tamanho do texto de 8 a 48 px, ajustável em 1 px ou por valor direto
-- Opacidade de 0% a 100%, ajustável em 1% ou por valor direto
-- Ao escolher uma propriedade do peek, o editor exibe uma prévia temporária do número "23" para facilitar o ajuste
-- Os novos valores são salvos no mesmo localStorage dos ajustes anteriores e inclusos nas exportações/importações JSON
+## Campo de mensagem
+- O textarea é sempre um único parágrafo: Return e Shift+Return não criam linhas manuais
+- Entradas de teclado virtual e quebras coladas/dictadas são normalizadas para espaços
+- Frases compridas ainda quebram naturalmente conforme a largura do campo
+- Ao apagar tudo, enviar uma pergunta ou abrir uma nova conversa, a altura é restaurada para 32 px imediatamente
+- A confirmação do corretor nativo do iOS e os dois modos de entrada continuam preservados
 
-## Compatibilidade
-- Ajustes salvos na versão 26 permanecem intactos, o peek começa com seu visual anterior (posição X=0/Y=0, fonte 10 px, opacidade 100%)
-- Backups antigos, sem propriedades do peek, continuam aceitos, usando os padrões para o peek
-- O menu de histórico, listas, force e tempos existentes foram mantidos
-- **O cabeçalho e o degradê superior não foram alterados**, conferidos por comparação literal dos blocos CSS
-- A barra nativa de navegação do teclado iOS (setas e confirmação) não pertence ao site e não foi modificada
+## Indicação secreta e efeito da joaninha
+- Texto normal: `Perguntar ao ChatGPT`
+- Modo secreto ativado: `Perguntar ao ChatGPT.`
+- A ativação continua restrita ao espaço vazio à direita do placeholder
+- O ponto do efeito de ocultação da joaninha continua funcionando separadamente, com timer de 5 segundos
+- O código OP=23 e o retorno ao modo normal após cada envio foram preservados
+
+## Editor visual
+- Botão Compactar/Expandir no topo do painel de ajuste
+- Ao escolher `1 · Topo`, o painel é automaticamente compactado e fixado na parte inferior visível, para não cobrir o título e os botões superiores
+- A versão compacta conserva o seletor de propriedade e as setas de ajuste
+- Toque em Expandir para mudar de seção ou acessar backups e outras propriedades
+- Com teclado aberto, o painel acompanha a altura útil da tela
+- Nenhuma propriedade do cabeçalho, nenhuma coordenada do topo e nenhum valor previamente salvo foram alterados
+
+## Orientação vertical
+- O manifesto PWA solicita `orientation: portrait`
+- Em navegadores móveis que ignoram essa preferência, CSS contrapõe visualmente a orientação horizontal para preservar o layout vertical
+- O Safari do iPhone não garante bloqueio físico da orientação por PWA, portanto essa é uma proteção visual sujeita a teste no aparelho real
+- Nenhum estilo vertical existente foi alterado
+
+## Testes de regressão
+- Chromium móvel 390 × 844 e viewport reduzido a 390 × 500: editor não cobre o topo
+- Textarea longo expande automaticamente e retorna a 32 px ao esvaziar, enviar ou abrir conversa
+- Enter e Shift+Enter impedem nova linha
+- Force `OP=23` produz `Liste 50 animais` e coloca Joaninha na posição 23
+- Após envio, modo normal é restaurado
+- Ponto da revelação da joaninha ativado sem conflito; emoji ocultado após o temporizador
+- Orientação horizontal móvel 844 × 390: o aplicativo permanece com proporções internas verticais por transformação CSS
+- Cabeçalho, título, menu, botão de nova conversa, conversa e campo: mesmas coordenadas que na v27 em portrait
+- Sem erros JavaScript no Chromium; Safari/PWA físico ainda precisa ser testado
 
 ## Publicação
-- Cache Busting atualizado para v27 nos recursos, arquivo de manifesto e listas
-- version.json publicado por último, ativando a atualização manual em "Deseja atualizar o app"
-
-## Testes
-- Executados no Chromium headless com HTML carregado diretamente e chamadas de listas simuladas
-- Prévia do peek, setas X/Y, entrada numérica, perfis de teclado, tamanho, opacidade, persistência e recarregamento
-- Digitação no modo normal, lista de 10 filmes, código OP = 23, desaparecimento do peek em 2 segundos
-- Sem erros de JavaScript durante os testes automatizados
-- Safari/PWA físico no iPhone ainda requer confirmação
+- Index, manifesto e recursos receberam cache busting v28
+- A atualização manual permanece no primeiro item das conversas recentes
+- `version.json` é publicado por último
