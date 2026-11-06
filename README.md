@@ -1,20 +1,32 @@
-# GPT Force v29 | Reversão exclusiva do landscape
+# GPT Force v30 | Janela do editor redimensionável
 
-## Ajuste realizado
-- Removida a contrarrotação CSS introduzida na v28 para telas na horizontal
-- Restaurada a lógica original de dimensões e posição do viewport da v27
-- Removida a propriedade `orientation: portrait` do manifesto do PWA
-- Ao girar o iPhone, o app passa a seguir o comportamento natural do navegador, como antes da v28
+## O que mudou
+- Removidos por completo o botão Compactar/Expandir e o modo de edição compacto
+- A janela **Ajustar interface** agora tem dois sliders de uso direto:
+  - Altura de 210 a 740 pixels, passos de 10 pixels
+  - Largura de 260 a 450 pixels, passos de 10 pixels
+- A janela é redimensionada imediatamente enquanto o usuário arrasta os sliders, sem afetar a interface que está sendo editada
+- O tamanho escolhido é guardado junto com o restante das preferências ao tocar em **Salvar**
+- Os valores de altura e largura também são incluídos nos backups exportados, mantendo compatibilidade com backups das versões anteriores
+- No ajuste da seção **1 · Topo**, o painel permanece ancorado na parte inferior para deixar o cabeçalho visível, mas não é mais compactado ou tem ferramentas escondidas
+- Com teclado aberto, a altura da janela é limitada automaticamente à região disponível, preservando a rolagem interna das opções
+- Os botões de edição, seções e controles de Peek anteriores continuam presentes
 
-## Mantido sem alterações
-- Correção do campo de digitação e reset da altura (v28)
-- Indicador secreto com ponto final, separado do efeito da joaninha
-- Editor compacto para ajustes do topo
-- Editor de peek, opacidade, tamanho, posições e backups
-- Todas as listas, força secreta, corretor nativo, estilos do topo e degradês
+## Integridade
+- A comparação literal confirmou que o CSS do cabeçalho e o CSS do degradê superior são idênticos aos da v29
+- O código secreto OP=23, o modo normal, o indicador discreto, o efeito da joaninha, o reconhecimento de listas e o texto do campo permanecem inalterados
+- O comportamento anterior de orientação de tela restaurado na v29 permanece intacto
 
-## Verificação
-- O trecho CSS do cabeçalho e o degradê superior foram comparados literalmente com a v28, sem diferenças
-- A função `resizeToViewport()` foi restaurada literalmente à v27
-- Nenhum estilo ou comportamento das demais funcionalidades foi intencionalmente alterado
-- Cache busting v29, com `version.json` atualizado por último
+## Testes
+- Playwright Chromium em 390 × 844: sliders alteram a janela de 540/450 para 270/300 pixels sem mover o topo nem o campo de mensagens
+- Com a seção Topo selecionada, o painel fica embaixo e não encobre o cabeçalho
+- Com viewport reduzido a 390 × 500, o painel continua dentro da área disponível
+- Salvamento e reabertura do editor mantêm os novos tamanhos
+- Backup v29 sem propriedades de tamanho é importado e assume os valores padrão
+- OP=23 produz `Liste 50 animais` e Joaninha aparece na posição 23
+- Nenhum erro de JavaScript observado nos testes automatizados
+- Validação visual definitiva com Safari/PWA instalado no iPhone ainda depende do usuário
+
+## Publicação
+- Cache busting v30 aplicado no index e no manifesto
+- `version.json` publicado apenas após todos os demais arquivos
