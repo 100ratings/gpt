@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ChatGPT">
-<link rel="manifest" href="manifest.webmanifest?v=33">
-<link rel="apple-touch-icon" href="icon-192.png?v=33">
+<link rel="manifest" href="manifest.webmanifest?v=34">
+<link rel="apple-touch-icon" href="icon-192.png?v=34">
 <title>ChatGPT</title>
 <style>
 :root{color-scheme:dark;--bg:#000;--fg:#f5f5f5;--muted:#9b9b9d;--surface:#222224;--surface2:#2d2d30;--outline:#38383b;--header-h:60px;--app-height:100dvh}
@@ -110,7 +110,7 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
 .composer-inner{display:flex;align-items:flex-end;gap:4px;padding:7px 8px 7px 9px;min-height:53px}
 .add-button{width:36px;height:36px;flex-shrink:0;border-radius:50%;display:grid;place-items:center;color:#ededee;margin-bottom:1px}
 .add-button svg{width:25px;height:25px}
-.prompt{border:0;border-radius:0;resize:none;outline:0;box-shadow:none;background:transparent;color:#f8f8f9;-webkit-appearance:none;appearance:none;min-width:0;flex:1;font-size:16px;line-height:22px;min-height:32px;max-height:122px;padding:6px 3px 4px;margin:0;overflow-y:auto;letter-spacing:0;-webkit-user-select:text;user-select:text;caret-color:white}
+.prompt{border:0;border-radius:0;resize:none;outline:0;box-shadow:none;background:transparent;color:#f8f8f9;-webkit-appearance:none;appearance:none;min-width:0;flex:1;font-size:16px;line-height:22px;min-height:32px;max-height:122px;padding:6px 3px 4px;margin:0;overflow-y:auto;letter-spacing:0;-webkit-user-select:text;user-select:text;-webkit-touch-callout:none;caret-color:white}
 .prompt::placeholder{color:#949498;opacity:1}
 .prompt:focus{outline:0}
 .composer-buttons{
@@ -413,7 +413,7 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
   </header>
   <main class="conversation" id="conversation" aria-label="Conversa">
     <section class="welcome" id="welcome">
-      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=33" alt="" aria-hidden="true">
+      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=34" alt="" aria-hidden="true">
       <h1 class="welcome-title" data-edit-key="welcome-title">Como posso ajudar?</h1>
     </section>
     <section class="messages" id="messages" aria-live="off"></section>
@@ -624,6 +624,19 @@ function chooseComposerMode(event){
  setSecretMode(tapX>boundary&&tapX<rect.width-6);
 }
 prompt.addEventListener('pointerdown',chooseComposerMode);
+// iOS may offer Copy/Paste/AutoFill after a second tap in an already-focused
+// empty field. Suppress that default text-editing gesture ONLY when the empty
+// composer is already focused. The first tap, real typing, autocorrect and
+// caret relocation in NONEMPTY text remain native. The secret hit zone is
+// processed on pointerdown (or the existing touchstart fallback) beforehand.
+prompt.addEventListener('contextmenu',event=>event.preventDefault());
+prompt.addEventListener('touchstart',event=>{
+ if(!editing && !generating && document.activeElement===prompt &&
+    prompt.value.length===0 && event.touches.length===1){
+  event.preventDefault();
+ }
+},{passive:false});
+
 if(!window.PointerEvent)prompt.addEventListener('touchstart',event=>{
  if(event.touches.length===1)chooseComposerMode(event.touches[0]);
 },{passive:true});
@@ -863,7 +876,7 @@ function parseRequest(question){
 }
 async function fetchListFile(category){
  if(!category||!/^[a-z0-9]+$/.test(category))throw Error('categoria invalida');
- const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=33&ts='+Date.now(),{cache:'no-store'});
+ const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=34&ts='+Date.now(),{cache:'no-store'});
  if(!response.ok)throw Error('lista nao disponivel');
  const raw=await response.text();
  return raw.replace(/^\uFEFF/,'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -1718,7 +1731,7 @@ function makeLayoutBackup(){
  return {
   format:LAYOUT_BACKUP_FORMAT,
   schemaVersion:LAYOUT_BACKUP_SCHEMA,
-  appVersion:33,
+  appVersion:34,
   exportedAt:new Date().toISOString(),
   settings:cloneProfiles(editing?draftOffsets:savedOffsets)
  };
@@ -1916,7 +1929,7 @@ refreshComposerMeasure();
 // v21: atualização discreta no PRIMEIRO item das conversas recentes.
 // Nenhum redirecionamento automático, nem durante o force nem numa conversa aberta.
 // A consulta bypassa cache HTTP e volta a ser feita a cada abertura do menu.
-const GPT_FORCE_VERSION=33;
+const GPT_FORCE_VERSION=34;
 const DEFAULT_RECENT_TITLE='Quando usar por que e porque';
 let latestAvailableVersion=null;
 let updateCheckSequence=0;
