@@ -603,10 +603,21 @@ svg{display:block}
   draft=draft.slice(0,caretPos)+str+draft.slice(caretPos);
   caretPos+=str.length;
  }
+ const graphemeTool=typeof Intl!=='undefined'&&Intl.Segmenter?
+  new Intl.Segmenter('pt-BR',{granularity:'grapheme'}):null;
  function eraseOne(){
   if(caretPos>0){
-   draft=draft.slice(0,caretPos-1)+draft.slice(caretPos);
-   caretPos--;
+   const prefix=draft.slice(0,caretPos);
+   let back=caretPos-1;
+   if(graphemeTool){
+    const segments=Array.from(graphemeTool.segment(prefix));
+    back=segments.length?segments[segments.length-1].index:0;
+   }else{
+    const parts=Array.from(prefix);
+    back=Math.max(0,caretPos-(parts[parts.length-1]?.length||1));
+   }
+   draft=draft.slice(0,back)+draft.slice(caretPos);
+   caretPos=back;
   }
   if(!draft){shiftNext=true;capsLocked=false;lastShiftAt=-Infinity;}
  }
@@ -626,7 +637,9 @@ svg{display:block}
   accentsPopup.style.left=Math.max(93,Math.min(r.width-93,rect.left-r.left+rect.width/2))+'px';
   accentsPopup.style.bottom=Math.max(15,r.bottom-rect.top+6)+'px';
   for(const option of variants){
-   const symbol=(capsLocked?option.toUpperCase():option);
+   const base=draft[accentPosition]||'';
+   const symbol=base===base.toUpperCase()&&base.toLowerCase()!==base?
+    option.toUpperCase():option;
    const b=document.createElement('button');b.type='button';b.textContent=symbol;
    b.addEventListener('pointerdown',e=>{e.preventDefault();applyAccent(symbol)});
    b.addEventListener('click',()=>applyAccent(symbol));
@@ -655,7 +668,9 @@ svg{display:block}
    kind='backspace';action=meta.repeat?'repeat-delete':'delete';
    eraseOne();refreshLetterLabels();updateComposer();
   }else if(key==='↵'){
-   kind='return';action='newline';insertText('\n');updateComposer();
+   kind='return';action='newline';insertText('\n');
+   if(!capsLocked){shiftNext=true;refreshLetterLabels();}
+   updateComposer();
   }else if(key==='espaço'){
    kind='space';action='space';
    if(caretPos>=2&&draft[caretPos-1]===' '&&/[\p{L}\p{N}]/u.test(draft[caretPos-2])){
@@ -726,6 +741,9 @@ svg{display:block}
     button.addEventListener('pointerdown',e=>{
      if(e.pointerType!=='touch'&&e.pointerType!=='pen')return;
      e.preventDefault();lastTouch=performance.now();
+     if((key==='espaço'||key==='⌫')&&button.setPointerCapture){
+      try{button.setPointerCapture(e.pointerId)}catch(error){}
+     }
      if(touchHold)stopTouch(touchHold.id);
      touchHold={id:e.pointerId,button,key,x:e.clientX,startCaret:caretPos,longTimer:null,
       trackpad:false,lastStep:0};
@@ -758,6 +776,7 @@ svg{display:block}
      }
     });
     for(const ev of ['pointerup','pointercancel','pointerleave']){
+     if(ev==='pointerleave'&&(key==='espaço'||key==='⌫'))continue;
      button.addEventListener(ev,e=>{stopTouch(e.pointerId);button.classList.remove('kb-pressed')});
     }
     button.addEventListener('click',()=>{
