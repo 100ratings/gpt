@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="GPT iOS 26 Teste">
+<link rel="manifest" href="./teste.webmanifest">
+<link rel="apple-touch-icon" href="./icon-192.png?v=48">
+<title>ChatGPT · iOS 26 · Protótipo visual</title>
+<style>
+:root {
+ color-scheme:dark;
+ --bg:#000;
+ --ink:#f6f6f7;
+ --muted:#a9a9ac;
+ --subtle:#838387;
+ --glass:rgba(33,33,35,.75);
+ --hairline:rgba(255,255,255,.125);
+ --blue:#3468f2;
+ --bubble:#08076b;
+ --app-h:100dvh;
+ --safe-top:max(41px,env(safe-area-inset-top,0px));
+ --safe-bottom:max(30px,env(safe-area-inset-bottom,0px));
+ --composer-bottom:var(--safe-bottom);
+ --kbd-h:318px;
+ --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{width:100%;height:var(--app-h,100%);padding:0;margin:0;background:#000;overflow:hidden;overscroll-behavior:none}
+html{font-family:var(--font);-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;touch-action:pan-x pan-y}
+body{position:relative;color:var(--ink);-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+button:focus-visible{outline:2px solid #87a7ff;outline-offset:3px}
+svg{display:block}
+#app{position:absolute;top:0;left:0;right:0;height:var(--app-h,100%);overflow:hidden;background:var(--bg)}
+#app.browser-mode::before{content:"";position:absolute;z-index:90;left:0;top:0;width:100%;height:34px;background:transparent;pointer-events:none}
+#fake-status{display:none;position:absolute;z-index:100;top:13px;left:33px;right:32px;align-items:center;justify-content:space-between;font-size:15px;font-weight:700;pointer-events:none;letter-spacing:.1px}
+.desktop-preview #fake-status{display:flex}
+.fake-status-right{display:flex;gap:7px;align-items:center}
+.fake-status-right svg{width:20px;height:16px}
+.fake-battery{background:#fff;color:#000;font-size:10px;border-radius:5px;padding:0 5px;line-height:15px}
+#drawer{position:absolute;inset:0;z-index:2;background:#000;visibility:hidden;opacity:0;transition:opacity .22s ease,visibility .22s ease;overflow:hidden}
+#app.drawer-open #drawer{visibility:visible;opacity:1}
+.drawer-inner{position:absolute;inset:0;width:calc(100% - 85px);padding:calc(var(--safe-top) + 8px) 0 calc(var(--safe-bottom) + 16px);overflow-y:auto;scrollbar-width:none}
+.drawer-inner::-webkit-scrollbar{display:none}
+.drawer-title-row{display:flex;align-items:center;justify-content:space-between;padding:0 18px 14px 31px}
+.drawer-title{font-size:22px;font-weight:720;letter-spacing:-.55px}
+.drawer-search{display:grid;place-items:center;width:42px;height:42px;border:1px solid var(--hairline);border-radius:50%;background:#19191b}
+.drawer-search svg{width:25px;height:25px}
+.drawer-link{width:100%;border:0;background:transparent;text-align:left;display:flex;align-items:center;gap:14px;height:47px;padding:0 16px 0 30px;font-size:17px;font-weight:500;letter-spacing:-.2px}
+.drawer-link svg{width:22px;height:22px;stroke-width:1.9;flex:none}
+.drawer-link:active,.drawer-recent:active{background:#1a1a1c}
+.drawer-group{padding:30px 30px 8px;font-weight:660;font-size:17px;letter-spacing:-.2px}
+.drawer-project{display:flex;align-items:center;gap:14px;padding:0 30px;height:46px;font-size:16.5px}
+.drawer-project svg{width:21px;height:21px;flex:none}
+.drawer-recent{height:42px;display:block;width:100%;text-align:left;padding:0 30px;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:0;background:transparent}
+.drawer-actions{position:sticky;bottom:0;display:flex;align-items:center;justify-content:space-between;width:100%;padding:16px 19px 2px 30px;background:linear-gradient(to top,#000 65%,rgba(0,0,0,0))}
+.newchat-blue{display:flex;align-items:center;gap:12px;padding:11px 17px;border:1px solid rgba(255,255,255,.2);border-radius:26px;background:var(--blue);font-size:17px;font-weight:680;box-shadow:inset 0 1px rgba(255,255,255,.12)}
+.drawer-avatar{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:#8d51b2;border:7px solid #1b1b1c;font-size:12px;box-sizing:content-box}
+#page{position:absolute;inset:0;background:#000;overflow:hidden;z-index:3;transform:none;transform-origin:left center;transition:transform .38s cubic-bezier(.22,.78,.22,1),border-radius .38s;will-change:transform}
+#app.drawer-open #page{transform:translateX(calc(100% - 95px)) scale(.982);border:1px solid #3f3f43;border-radius:40px;box-shadow:-15px 0 35px rgba(0,0,0,.5)}
+#app.drawer-open #page::after{content:"";inset:0;position:absolute;z-index:80;background:rgba(0,0,0,.48)}
+#header{position:absolute;z-index:24;top:var(--safe-top);left:16px;right:16px;height:44px;display:flex;align-items:center;justify-content:space-between;pointer-events:none}
+#header>*{pointer-events:auto}
+.glass{
+ background:var(--glass);
+ border:1px solid var(--hairline);
+ -webkit-backdrop-filter:blur(21px) saturate(160%);
+ backdrop-filter:blur(21px) saturate(160%);
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.055);
+}
+.glass-circle{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;padding:0}
+.glass-circle svg{width:25px;height:25px}
+#top-menu{position:relative}
+#home-tabs{position:absolute;top:0;left:50%;transform:translateX(-50%);height:44px;border-radius:24px;display:flex;align-items:center;padding:3px;width:158px}
+#home-tabs button{height:38px;width:50%;border:0;background:transparent;border-radius:23px;font-weight:400;font-size:16px;letter-spacing:-.25px}
+#home-tabs button.active{background:rgba(105,105,109,.36)}
+#top-home-right{margin-left:auto}
+#thread-actions{height:44px;width:109px;border-radius:24px;display:none;align-items:center;justify-content:space-evenly;padding:0 5px 0 6px}
+#thread-actions button{display:grid;place-items:center;background:transparent;border:0;min-width:42px;height:40px;padding:5px}
+#thread-actions svg{width:25px;height:25px}
+#app:not(.scene-home) #home-tabs,#app:not(.scene-home) #top-home-right{display:none}
+#app:not(.scene-home) #thread-actions{display:flex}
+#app.scene-home #thread-actions{display:none}
+#threadScroll{position:absolute;inset:0;z-index:5;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;scrollbar-width:none;touch-action:pan-y;
+ -webkit-mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.38) 45px,#000 114px,#000 calc(100% - 160px),rgba(0,0,0,.92) calc(100% - 132px),rgba(0,0,0,.72) calc(100% - 93px),rgba(0,0,0,.15) calc(100% - 50px),transparent calc(100% - 18px));
+ mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.38) 45px,#000 114px,#000 calc(100% - 160px),rgba(0,0,0,.92) calc(100% - 132px),rgba(0,0,0,.72) calc(100% - 93px),rgba(0,0,0,.15) calc(100% - 50px),transparent calc(100% - 18px));
+}
+#app.scene-home #threadScroll{display:none}
+#thread-inner{padding:100px 16px calc(var(--composer-bottom) + 105px);min-height:100%}
+#bubble-row{display:flex;justify-content:flex-end;margin:0 -1px 30px 0}
+.bubble{background:var(--bubble);color:#e5e6ff;display:inline-flex;align-items:center;padding:12px 16px;min-height:51px;border-radius:23px;font-size:16px;line-height:1.35;max-width:83%;white-space:pre-wrap}
+#thinking{margin:0 0 0 0;color:#a3a3a7;font-size:17px;line-height:24px;display:none}
+#list{list-style:none;padding:0;margin:0}
+#list .row{font-size:16.7px;line-height:21.2px;letter-spacing:-.17px;display:grid;grid-template-columns:22px 1fr;column-gap:8px;margin:0;min-height:21.3px}
+#list .number{text-align:right;font-variant-numeric:tabular-nums;font-feature-settings:"tnum";white-space:nowrap}
+#list .word{min-width:0}
+#actions{display:none;align-items:center;gap:13px;margin-top:12px;padding-bottom:8px}
+#actions button{height:29px;min-width:18px;display:grid;place-items:center;padding:0;background:transparent;border:0;color:#d4d4d7}
+#actions svg{width:19px;height:19px}
+#actions #feedback{gap:1px;display:flex}
+#actions #feedback svg{width:15px;height:19px}
+#app.scene-thinking #thinking{display:block}
+#app.scene-thinking #list,#app.scene-thinking #actions{display:none}
+#app.scene-end #actions{display:flex}
+#app.scene-list #actions{display:none}
+#app.scene-thinking #thread-inner{padding-top:100px}
+#app.scene-list #thread-inner,#app.scene-end #thread-inner{padding-top:100px}
+#app.keyboard-on #thread-inner{padding-bottom:calc(var(--kbd-h) + 125px)}
+#top-fade{position:absolute;z-index:12;top:0;left:0;right:0;height:145px;pointer-events:none;background:linear-gradient(to bottom,#000 15%,rgba(0,0,0,.94) 30%,rgba(0,0,0,.56) 57%,transparent 100%);display:none}
+#bottom-fade{position:absolute;z-index:12;left:0;right:0;bottom:0;height:168px;pointer-events:none;background:linear-gradient(to bottom,transparent 0%,rgba(0,0,0,.1) 12%,rgba(0,0,0,.48) 50%,rgba(0,0,0,.93) 83%,#000 100%);display:none}
+#app:not(.scene-home) #top-fade,#app:not(.scene-home) #bottom-fade{display:block}
+#app.keyboard-on #bottom-fade{bottom:var(--kbd-h);height:115px}
+#photoHint{position:absolute;left:24px;right:24px;bottom:calc(var(--composer-bottom) + 70px);display:flex;align-items:center;gap:12px;z-index:14;min-height:36px;white-space:nowrap;overflow:hidden;font-size:16px;letter-spacing:-.2px;color:#c5c5c8}
+#photoHint .thumbnail{width:23px;height:27px;flex:none;border:1px solid #303035;border-radius:6px;background:linear-gradient(180deg,#090a0e 25%,#121723 25% 72%,#070709 72%);display:flex;align-items:center;justify-content:center;color:#c5c8d3;font-size:9px;overflow:hidden}
+#photoHint span:last-child{overflow:hidden;text-overflow:ellipsis}
+#app:not(.scene-home) #photoHint{display:none}
+#app.keyboard-on #photoHint{bottom:calc(var(--kbd-h) + 112px);left:22px}
+#app.keyboard-on #photoHint .thumbnail{background:transparent;border:0;width:25px;height:26px;color:#2aa2ff;font-size:25px}
+#jump{position:absolute;z-index:22;bottom:calc(var(--composer-bottom) + 64px);left:50%;transform:translateX(-50%);width:33px;height:33px;border-radius:50%;display:none;align-items:center;justify-content:center;padding:0;color:#fff}
+#jump svg{width:20px;height:20px}
+#jump.visible{display:flex}
+#app.keyboard-on #jump{bottom:calc(var(--kbd-h) + 119px)}
+#composer{position:absolute;z-index:23;left:32px;right:32px;bottom:var(--composer-bottom);height:49px;border-radius:27px;display:flex;align-items:center;padding:0 7px 0 9px;gap:8px;background:rgba(27,27,29,.93);border:1px solid rgba(255,255,255,.13);box-shadow:inset 0 1px 0 rgba(255,255,255,.03);-webkit-backdrop-filter:blur(25px) saturate(160%);backdrop-filter:blur(25px) saturate(160%);transition:bottom .2s ease,left .2s ease,right .2s ease,height .2s ease}
+#composer>button{background:transparent;border:0;padding:0;display:grid;place-items:center;flex:none}
+#add{width:33px;height:40px}
+#add svg{width:26px;height:26px}
+#text-field{flex:1;min-width:0;color:#8b8b90;font-size:16.7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:38px;display:flex;align-items:center}
+#text-field.has-text{color:#f2f2f4}
+#mic{width:31px;height:40px}
+#mic svg{width:25px;height:25px}
+#sendVoice{border-radius:50%!important;width:34px;height:34px;background:var(--blue)!important;color:#fff}
+#sendVoice svg{width:22px;height:22px}
+#stopPath,#sendPath{display:none}
+#app.scene-thinking #stopPath,#app.scene-list #stopPath{display:block}
+#app.scene-thinking #voicePath,#app.scene-list #voicePath{display:none}
+#composer.has-draft #sendPath{display:block}
+#composer.has-draft #voicePath{display:none}
+#app.keyboard-on #composer{left:12px;right:12px;bottom:calc(var(--kbd-h) + 12px);height:91px;border-radius:24px;display:grid;grid-template-columns:auto 1fr auto auto auto;grid-template-rows:42px 38px;gap:0 8px;padding:7px 8px 5px 11px}
+#app.keyboard-on #text-field{grid-column:1/6;grid-row:1;align-items:center;padding-left:3px;font-size:16.7px}
+#app.keyboard-on #text-field::before{content:"";height:22px;width:2px;margin-right:2px;background:#4c80fa;animation:caret 1.1s step-end infinite}
+@keyframes caret{50%{opacity:0}}
+#app.keyboard-on #add{grid-column:1;grid-row:2;justify-self:start;width:33px}
+#app.keyboard-on #typingMeter{display:block;grid-column:3;grid-row:2}
+#typingMeter{display:none;width:24px;height:24px;border-radius:50%;border:2px solid #68707c;border-left-color:#3369f4;border-bottom-color:#3369f4;position:relative;align-self:center}
+#typingMeter:after{content:"";position:absolute;inset:7px;background:#fff;border-radius:50%}
+#app.keyboard-on #mic{grid-column:4;grid-row:2;width:30px}
+#app.keyboard-on #sendVoice{grid-column:5;grid-row:2;align-self:center}
+#keyboard{position:absolute;z-index:22;left:0;right:0;bottom:0;height:var(--kbd-h);background:#1b1b1e;border-top:1px solid #343437;border-radius:30px 30px 0 0;display:none;padding:20px 6px 0;box-shadow:0 -2px 0 rgba(255,255,255,.045)}
+#app.keyboard-on #keyboard{display:block}
+.kb-row{display:flex;justify-content:center;gap:5px;height:43px;margin:0 0 9px}
+.kb-row:nth-child(2){padding-left:18px;padding-right:18px}
+.kb-row:nth-child(3){margin-top:1px}
+.kb-key{background:#404043;border:0;border-radius:7px;flex:1;min-width:0;color:#f9f9fb;display:grid;place-items:center;font-size:20px;box-shadow:0 1px rgba(0,0,0,.35);line-height:1;padding:0}
+.kb-key:active{background:#626269}
+.kb-wide{flex:1.42;background:#343439}
+.kb-wide svg{width:24px;height:24px}
+.kb-row:nth-child(4){height:42px;margin-top:2px}
+.kb-row:nth-child(4) .kb-key{font-size:16px}
+.kb-123{flex:1.05}.kb-emoji{flex:1.04}.kb-space{flex:5.5}.kb-return{flex:1.5}
+.kb-bottom{position:absolute;bottom:0;left:0;right:0;height:72px;display:flex;align-items:flex-start;justify-content:space-between;padding:20px 30px 0;color:#fff}
+.kb-bottom svg{width:30px;height:30px}
+.kb-indicator{position:absolute;width:35%;height:5px;border-radius:4px;background:#fff;bottom:10px;left:50%;transform:translateX(-50%)}
+#hub-scrim{position:absolute;inset:0;z-index:96;background:rgba(0,0,0,.58);display:none}
+#hub{position:absolute;z-index:97;left:10px;right:10px;bottom:calc(var(--safe-bottom) + 10px);border-radius:26px;background:rgba(31,31,34,.93);border:1px solid #49494e;-webkit-backdrop-filter:blur(28px) saturate(150%);backdrop-filter:blur(28px) saturate(150%);box-shadow:0 10px 45px #000b;padding:17px;display:none}
+#hub h2{font-size:17px;margin:0 0 5px;font-weight:700}
+#hub p{margin:0 0 13px;color:#aaa;font-size:12px;line-height:1.45}
+#hub-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#hub button{border:1px solid #4a4a4d;border-radius:12px;background:#3b3b40;color:#fff;padding:11px 7px;font-size:13px;text-align:center}
+#hub button:active{background:#58585f}
+#hub-close{width:100%;margin-top:10px}
+#app.hub-open #hub,#app.hub-open #hub-scrim{display:block}
+#testTag{display:none}
+@media(max-width:370px){#composer{left:20px;right:20px}#header{left:13px;right:13px}#home-tabs{width:152px}#list .row{font-size:16px}.drawer-inner{width:calc(100% - 65px)}}
+@media(max-height:720px){:root{--safe-top:max(35px,env(safe-area-inset-top,0px))}#keyboard{padding-top:13px}.kb-row{height:38px;margin-bottom:6px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div id="app" class="scene-home">
+ <div id="fake-status" aria-hidden="true"><span>09:19</span><div class="fake-status-right"><svg viewBox="0 0 22 16" fill="#fff"><rect x="1" y="10" width="3" height="6" rx="1"/><rect x="6" y="7" width="3" height="9" rx="1"/><rect x="11" y="4" width="3" height="12" rx="1"/><rect x="16" y="0" width="3" height="16" rx="1"/></svg><svg viewBox="0 0 22 16" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><path d="M2 6Q11 -1 20 6M6 10Q11 6 16 10M10.5 14h1"/></svg><span class="fake-battery">90</span></div></div>
+ <aside id="drawer" aria-label="Menu lateral">
+  <div class="drawer-inner">
+   <div class="drawer-title-row"><span class="drawer-title">ChatGPT</span><button class="drawer-search" id="searchChats" aria-label="Buscar conversa"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><circle cx="10.5" cy="10.5" r="7.5"/><path d="m16 16 5 5"/></svg></button></div>
+   <button class="drawer-link" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="5" width="5" height="15" rx="2"/><rect x="10" y="4" width="5" height="16" rx="2"/><rect x="17" y="6" width="4" height="14" rx="2"/></svg>Biblioteca</button>
+   <button class="drawer-link" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 11h18"/></svg>Projetos</button>
+   <button class="drawer-link" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M8 12a4 4 0 0 1 4-4m4 4a4 4 0 0 1-4 4M11 4l2 3m-1 10 2 3"/></svg>Plugins</button>
+   <button class="drawer-link" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 6v7l-4 3"/></svg>Agendado</button>
+   <button class="drawer-link" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 3c1.2-1.4 4.8-1.4 6 0 3 0 4.8 2.6 4.6 5.4 2.3 2 2.3 5.5 0 7.3.1 3-2 5-5 5.1-2 1.5-5.6.8-6.7-1.5-2.9.1-5.2-2.3-5.1-5.2-2-2.1-1.8-5.3 0-7.3-.1-2.8 1.8-5.2 4.2-5.4z"/><path d="M8 13h8m-4-4v8"/></svg>Codex</button>
+   <button class="drawer-link" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="8" height="7" rx="2"/><path d="m17 14 4 4-4 4-4-4z"/></svg>Explorar</button>
+   <div class="drawer-group">Fixado</div>
+   <div class="drawer-project"><svg viewBox="0 0 24 24" fill="none" stroke="#f6504b" stroke-width="2.5"><path d="m6 16-1 5 5-1 11-11a4 4 0 0 0-6-6z"/></svg>REX</div>
+   <div class="drawer-project"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M3 6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 11h18"/></svg>Tradução</div>
+   <div class="drawer-project"><svg viewBox="0 0 24 24" fill="none" stroke="#ed752f" stroke-width="1.8"><path d="M3 6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 11h18"/></svg>Robert Greene</div>
+   <div class="drawer-project"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M3 6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 11h18"/></svg>Chez Nous</div>
+   <div class="drawer-group">Recentes</div>
+   <button class="drawer-recent" id="recentAnimals">Lista de animais</button>
+   <button class="drawer-recent">Chess Rating Conversion</button>
+   <button class="drawer-recent">Psycho Calc Meaning</button>
+   <button class="drawer-recent">Tradução para inglês</button>
+   <button class="drawer-recent">Privacidade grátis no Instagram</button>
+   <div class="drawer-actions"><button class="newchat-blue" id="drawerNew"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linejoin="round"><path d="M12 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-8M12 13l8-9m0 0h-6m6 0v6"/></svg>Chat</button><span class="drawer-avatar">MA</span></div>
+  </div>
+ </aside>
+ <main id="page">
+  <header id="header">
+   <button class="glass glass-circle" id="top-menu" aria-label="Abrir menu, pressione e segure para telas de teste">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M3 8.5h18M3 15.5h11"/></svg>
+   </button>
+   <div id="home-tabs" class="glass" role="group" aria-label="Chat e Work">
+    <button class="active" id="tabChat" type="button">Chat</button><button id="tabWork" type="button">Work</button>
+   </div>
+   <button class="glass glass-circle" id="top-home-right" aria-label="Conversar por voz">
+    <svg viewBox="0 0 26 26" fill="none" stroke="#f5f5f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20.5a9.8 9.8 0 0 1-11.8-1.2L3 22l.8-6.1A10 10 0 1 1 22 16a7 7 0 0 1-4 4.5z"/></svg>
+   </button>
+   <div id="thread-actions" class="glass">
+    <button id="newChat" aria-label="Nova conversa">
+     <svg viewBox="0 0 26 26" fill="none" stroke="#f8f8fa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4H6a3 3 0 0 0-3 3v13a3 3 0 0 0 3 3h13a3 3 0 0 0 3-3v-8"/><path d="m12 15 10-10a2 2 0 0 0-3-3L9 12l-1 5z"/></svg>
+    </button>
+    <button id="more" aria-label="Mais opções">
+     <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="4" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="20" cy="12" r="1.8"/></svg>
+    </button>
+   </div>
+  </header>
+  <div id="photoHint" aria-hidden="true"><span class="thumbnail" id="photoThumb">▥</span><span id="hintText">Anexar foto recente</span></div>
+  <div id="threadScroll" role="region" aria-label="Conversa, rolagem independente">
+   <div id="thread-inner">
+    <div id="bubble-row"><div class="bubble">Liste 100 animais</div></div>
+    <div id="thinking">Pensando</div>
+    <div id="list"></div>
+    <div id="actions">
+     <button aria-label="Copiar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><rect x="8" y="7" width="13" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/></svg></button>
+     <button id="feedback" aria-label="Avaliação"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 10v11H3V10zm0 0 5-7c2-2 4 0 3 2l-2 5h7a2 2 0 0 1 2 2l-2 8H6"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 14V3H3v11zm0 0 5 7c2 2 4 0 3-2l-2-5h7a2 2 0 0 0 2-2l-2-8H6"/></svg></button>
+     <button aria-label="Ouvir resposta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4zM17 9a5 5 0 0 1 0 6m2-9a10 10 0 0 1 0 12"/></svg></button>
+     <button aria-label="Compartilhar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V2m0 0L8 6m4-4 4 4"/><path d="M5 11v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8"/></svg></button>
+     <button aria-label="Mais opções"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>
+    </div>
+   </div>
+  </div>
+  <div id="top-fade" aria-hidden="true"></div><div id="bottom-fade" aria-hidden="true"></div>
+  <button id="jump" class="glass" aria-label="Ir para o final da resposta"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v15m0 0-7-7m7 7 7-7"/></svg></button>
+  <div id="composer" aria-label="Campo de mensagem de demonstração">
+   <button id="add" aria-label="Adicionar"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M12 2v20M2 12h20"/></svg></button>
+   <div id="text-field" role="button" tabindex="0" aria-label="Toque para mostrar teclado simulado">Perguntar ao ChatGPT</div>
+   <span id="typingMeter" aria-hidden="true"></span>
+   <button id="mic" aria-label="Microfone"><svg viewBox="0 0 24 24" fill="none" stroke="#f8f8fa" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v4m-4 0h8"/></svg></button>
+   <button id="sendVoice" aria-label="Enviar ou voz"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+    <g id="voicePath"><path d="M3 10v4m4-7v10m5-14v18m5-14v10m4-7v4"/></g>
+    <g id="stopPath"><rect x="6.5" y="6.5" width="11" height="11" rx="1.4" fill="#fff" stroke="none"/></g>
+    <g id="sendPath"><path d="M12 19V5m0 0-6 6m6-6 6 6"/></g>
+   </svg></button>
+  </div>
+  <section id="keyboard" aria-label="Teclado visual do iOS 26, não é o teclado real">
+   <div class="kb-row" id="kbTop"></div>
+   <div class="kb-row" id="kbMiddle"></div>
+   <div class="kb-row" id="kbBottom"></div>
+   <div class="kb-row" id="kbControls"></div>
+   <div class="kb-bottom">
+    <svg viewBox="0 0 30 30" fill="none" stroke="#fafafa" stroke-width="1.65" stroke-linecap="round"><circle cx="15" cy="15" r="12"/><path d="M3 15h24M15 3v24M7.2 6c5.3 5.9 5.3 12.1 0 18M22.8 6c-5.3 5.9-5.3 12.1 0 18"/></svg>
+    <svg viewBox="0 0 30 30" fill="none" stroke="#fafafa" stroke-width="1.7" stroke-linecap="round"><rect x="11" y="2" width="8" height="18" rx="4"/><path d="M7 14a8 8 0 0 0 16 0M15 22v6m-5 0h10"/></svg>
+   </div>
+   <span class="kb-indicator" aria-hidden="true"></span>
+  </section>
+ </main>
+ <div id="hub-scrim"></div>
+ <section id="hub" aria-label="Telas de teste">
+  <h2>Telas do protótipo</h2>
+  <p>Controle exclusivo de demonstração, não aparece na cópia normal, pressione e segure o botão do menu para reabrir</p>
+  <div id="hub-grid">
+   <button data-scene="home">Tela inicial</button>
+   <button data-scene="thinking">Pensando</button>
+   <button data-scene="list">Lista de 100 itens</button>
+   <button data-scene="end">Final da resposta</button>
+   <button data-action="keyboard">Teclado aberto / fechado</button>
+   <button data-action="drawer">Menu lateral</button>
+  </div>
+  <button id="hub-close">Fechar controles</button>
+ </section>
+</div>
+<script>
+(function(){
+ 'use strict';
+ const app=document.getElementById('app'),page=document.getElementById('page');
+ const scroller=document.getElementById('threadScroll'),list=document.getElementById('list');
+ const hintText=document.getElementById('hintText'),photoThumb=document.getElementById('photoThumb');
+ const composer=document.getElementById('composer'),field=document.getElementById('text-field');
+ const sendVoice=document.getElementById('sendVoice'),jump=document.getElementById('jump');
+ const $=id=>document.getElementById(id);
+ const animals=[
+ 'Cachorro','Gato','Elefante','Leão','Tigre','Girafa','Zebra','Macaco','Gorila','Chimpanzé',
+ 'Urso','Panda','Coelho','Cavalo','Vaca','Porco','Ovelha','Cabra','Galinha','Pato',
+ 'Ganso','Peru','Pavão','Pinguim','Águia','Coruja','Papagaio','Tucano','Avestruz','Cisne',
+ 'Baleia','Golfinho','Tubarão','Orca','Foca-leopardo','Pássaro','Lobo','Raposa','Hiena','Suricato',
+ 'Anta','Capivara','Tamanduá','Tatu','Preguiça','Rinoceronte','Hipopótamo','Búfalo','Camelo','Lhama',
+ 'Alpaca','Esquilo','Castor','Javali','Leopardo','Pantera','Flamingo','Pelicano','Falcão','Beija-flor',
+ 'Golfinho','Cavala','Tubarão','Orca','Polvo','Lula','Água-viva','Estrela-do-mar','Cavalo-marinho','Peixe-palhaço',
+ 'Peixe-espada','Arraia','Foca','Leão-marinho','Morsa','Lontra','Crocodilo','Jacaré','Tartaruga',
+ 'Jabuti','Cobra','Lagarto','Camaleão','Iguana','Sapo','Rã','Salamandra','Borboleta','Abelha',
+ 'Formiga','Joaninha','Besouro','Barata','Mosquito','Libélula','Grilo','Gafanhoto','Aranha','Escorpião','Caracol'
+ ];
+ let scene='home', keyboard=false, draft='', drawer=false, hub=false, generating=false, timer=null, longTimer=null, wasLong=false;
+ const isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+ const standalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+ if(!isIOS)app.classList.add('desktop-preview');
+ function applyViewport(){
+  const fullScreen=isIOS&&standalone&&screen.height>screen.width;
+  const inner=window.innerHeight||document.documentElement.clientHeight;
+  const h=fullScreen?Math.max(screen.height,inner):inner;
+  const height=Math.max(380,Math.round(h));
+  document.documentElement.style.setProperty('--app-h',height+'px');
+  // Based on the supplied keyboard screenshot: ~34.4% of physical display
+  const kh=Math.max(264,Math.min(345,Math.round(height*.344)));
+  document.documentElement.style.setProperty('--kbd-h',kh+'px');
+ }
+ applyViewport();
+ window.addEventListener('resize',()=>{applyViewport();refreshJump();},{passive:true});
+ window.addEventListener('orientationchange',()=>setTimeout(applyViewport,250),{passive:true});
+ function stopAuto(){if(timer!==null){clearTimeout(timer);timer=null;}generating=false;}
+ function setDrawer(open){
+  drawer=!!open;
+  app.classList.toggle('drawer-open',drawer);
+ }
+ function setHub(open){
+  hub=!!open;app.classList.toggle('hub-open',hub);
+  if(hub)setDrawer(false);
+ }
+ function setKeyboard(open){
+  keyboard=!!open;
+  app.classList.toggle('keyboard-on',keyboard);
+  hintText.textContent=keyboard?'Organize, filtre e refine suas playlists de sy…':'Anexar foto recente';
+  photoThumb.textContent=keyboard?'▦':'▥';
+  if(keyboard)scroller.scrollTop=Math.max(0,scroller.scrollTop);
+  updateComposer();
+  setTimeout(refreshJump,40);
+ }
+ function makeList(){
+  const fragment=document.createDocumentFragment();
+  animals.forEach((animal,i)=>{
+   const row=document.createElement('div');row.className='row';
+   const n=document.createElement('span');n.className='number';n.textContent=String(i+1)+'.';
+   const w=document.createElement('span');w.className='word';w.textContent=animal;
+   row.append(n,w);fragment.appendChild(row);
+  });
+  list.replaceChildren(fragment);
+ }
+ makeList();
+ function refreshJump(){
+  if(scene!=='list'&&scene!=='thinking'&&scene!=='end'){jump.classList.remove('visible');return;}
+  const delta=scroller.scrollHeight-scroller.scrollTop-scroller.clientHeight;
+  jump.classList.toggle('visible',delta>88 && scene!=='thinking' && scene!=='end');
+ }
+ function updateComposer(){
+  const ongoing=scene==='thinking'||scene==='list';
+  const hasDraft=!!draft.trim()&&!ongoing;
+  composer.classList.toggle('has-draft',hasDraft);
+  field.classList.toggle('has-text',!!draft);
+  field.textContent=draft||'Perguntar ao ChatGPT';
+  sendVoice.setAttribute('aria-label',ongoing?'Parar resposta':hasDraft?'Enviar mensagem':'Conversar por voz');
+ }
+ function showScene(next,options){
+  if(!['home','thinking','list','end'].includes(next))return;
+  stopAuto();scene=next;
+  app.classList.remove('scene-home','scene-thinking','scene-list','scene-end');
+  app.classList.add('scene-'+next);
+  if(next!=='home')setKeyboard(false);
+  if(next==='home'){draft='';setKeyboard(false);}
+  updateComposer();
+  requestAnimationFrame(()=>{
+   if(next==='end'){scroller.scrollTop=scroller.scrollHeight;}
+   else scroller.scrollTop=0;
+   refreshJump();
+  });
+  if(options&&options.closeDrawer)setDrawer(false);
+ }
+ function startDemo(){
+  showScene('thinking');
+  generating=true;
+  timer=setTimeout(()=>{
+   timer=null;showScene('list');
+   generating=true;
+   timer=setTimeout(()=>{
+    timer=null;generating=false;showScene('end');
+   },10000);
+  },2200);
+ }
+ function sendDraft(){
+  if(scene==='thinking'||scene==='list'){showScene('end');return;}
+  if(!draft.trim()){setKeyboard(true);return;}
+  $('bubble-row').querySelector('.bubble').textContent=draft.trim();
+  draft='';
+  startDemo();
+ }
+ $('top-menu').addEventListener('pointerdown',()=>{
+  wasLong=false;clearTimeout(longTimer);
+  longTimer=setTimeout(()=>{wasLong=true;setHub(true);},670);
+ });
+ for(const ev of ['pointerup','pointercancel','pointerleave'])$('top-menu').addEventListener(ev,()=>clearTimeout(longTimer));
+ $('top-menu').addEventListener('contextmenu',e=>{e.preventDefault();setHub(true);wasLong=true;});
+ $('top-menu').addEventListener('click',e=>{if(wasLong){wasLong=false;e.preventDefault();return;}setDrawer(!drawer);});
+ $('top-home-right').addEventListener('click',()=>setKeyboard(true));
+ $('tabWork').addEventListener('click',()=>{ $('tabChat').classList.remove('active');$('tabWork').classList.add('active');});
+ $('tabChat').addEventListener('click',()=>{ $('tabWork').classList.remove('active');$('tabChat').classList.add('active');});
+ $('newChat').addEventListener('click',()=>showScene('home'));
+ $('more').addEventListener('click',()=>setHub(true));
+ $('searchChats').addEventListener('click',()=>setHub(true));
+ $('drawerNew').addEventListener('click',()=>showScene('home',{closeDrawer:true}));
+ $('recentAnimals').addEventListener('click',()=>showScene('list',{closeDrawer:true}));
+ $('text-field').addEventListener('click',()=>{setKeyboard(true);});
+ $('text-field').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();setKeyboard(true);}});
+ $('add').addEventListener('click',()=>setKeyboard(!keyboard));
+ $('mic').addEventListener('click',()=>setKeyboard(true));
+ $('sendVoice').addEventListener('click',()=>sendDraft());
+ $('jump').addEventListener('click',()=>{scroller.scrollTo({top:scroller.scrollHeight,behavior:'smooth'});});
+ scroller.addEventListener('scroll',refreshJump,{passive:true});
+ $('hub-scrim').addEventListener('click',()=>setHub(false));
+ $('hub-close').addEventListener('click',()=>setHub(false));
+ for(const b of $('hub-grid').querySelectorAll('button')){
+  b.addEventListener('click',()=>{
+   const target=b.dataset.scene,action=b.dataset.action;
+   setHub(false);
+   if(target)showScene(target);
+   if(action==='keyboard')setKeyboard(!keyboard);
+   if(action==='drawer')setDrawer(true);
+  });
+ }
+ // The mock keyboard is intentionally not an input: no real iOS keyboard appears
+ // and the two visual states stay stable for pixel-by-pixel comparison
+ const keyRows=[
+  ['Q','W','E','R','T','Y','U','I','O','P'],
+  ['A','S','D','F','G','H','J','K','L'],
+  ['⇧','Z','X','C','V','B','N','M','⌫'],
+  ['123','☺','espaço','↵']
+ ];
+ ['kbTop','kbMiddle','kbBottom','kbControls'].forEach((id,rowIndex)=>{
+  const row=$(id);
+  keyRows[rowIndex].forEach((key,idx)=>{
+   const button=document.createElement('button');button.type='button';button.className='kb-key';
+   if((rowIndex===2&&(idx===0||idx===8))||(rowIndex===3&&key!=='espaço'))button.classList.add('kb-wide');
+   if(rowIndex===3){
+    if(key==='123')button.classList.add('kb-123');
+    else if(key==='☺')button.classList.add('kb-emoji');
+    else if(key==='espaço')button.classList.add('kb-space');
+    else button.classList.add('kb-return');
+   }
+   button.textContent=key==='espaço'?'':key;
+   if(key==='espaço')button.setAttribute('aria-label','Espaço');
+   button.addEventListener('click',()=>{
+    if(key==='⌫')draft=draft.slice(0,-1);
+    else if(key==='↵'){sendDraft();return;}
+    else if(key==='espaço')draft+=' ';
+    else if(key==='⇧'||key==='123'||key==='☺')return;
+    else draft+=key.toLowerCase();
+    updateComposer();
+   });
+   row.appendChild(button);
+  });
+ });
+ let touchX=0,touchY=0;
+ page.addEventListener('touchstart',e=>{
+  if(e.touches.length!==1)return;
+  touchX=e.touches[0].clientX;touchY=e.touches[0].clientY;
+ },{passive:true});
+ page.addEventListener('touchend',e=>{
+  if(e.changedTouches.length!==1)return;
+  const dx=e.changedTouches[0].clientX-touchX;
+  if(touchX<26&&dx>90&&Math.abs(e.changedTouches[0].clientY-touchY)<100)setDrawer(true);
+ },{passive:true});
+ $('drawer').addEventListener('touchstart',e=>{if(e.touches.length===1)touchX=e.touches[0].clientX;},{passive:true});
+ $('drawer').addEventListener('touchend',e=>{if(e.changedTouches.length===1&&e.changedTouches[0].clientX-touchX < -65)setDrawer(false);},{passive:true});
+ page.addEventListener('click',e=>{
+  if(drawer && !e.target.closest('#header'))setDrawer(false);
+ });
+ // A desktop-only shortcut; not displayed on the iPhone reproduction
+ window.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){setHub(false);setDrawer(false);setKeyboard(false);}
+  if(e.ctrlKey&&e.shiftKey&&e.key.toLowerCase()==='t'){e.preventDefault();setHub(!hub);}
+ });
+ updateComposer();
+ setKeyboard(false);
+})();
+</script>
+</body>
+</html>
