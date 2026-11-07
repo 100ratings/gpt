@@ -123,6 +123,8 @@ svg{display:block}
 #bubble-row{display:flex;justify-content:flex-end;margin:0 -1px 30px 0}
 .bubble{background:var(--bubble);color:#e5e6ff;display:inline-flex;align-items:center;padding:12px 16px;min-height:51px;border-radius:23px;font-size:16px;line-height:1.35;max-width:83%;white-space:pre-wrap}
 #thinking{margin:0 0 0 0;color:#a3a3a7;font-size:17px;line-height:24px;display:none}
+#answerIntro{display:none;font-size:16.7px;line-height:23px;color:#ededf0;margin:0 0 14px}
+#app.scene-list #answerIntro,#app.scene-end #answerIntro{display:block}
 #list{list-style:none;padding:0;margin:0}
 #list .row{font-size:16.7px;line-height:21.2px;letter-spacing:-.17px;display:grid;grid-template-columns:22px 1fr;column-gap:8px;margin:0;min-height:21.3px}
 #list .number{text-align:right;font-variant-numeric:tabular-nums;font-feature-settings:"tnum";white-space:nowrap}
@@ -306,6 +308,7 @@ svg{display:block}
    <div id="thread-inner">
     <div id="bubble-row"><div class="bubble">Liste 100 animais</div></div>
     <div id="thinking">Pensando</div>
+    <p id="answerIntro"></p>
     <div id="list"></div>
     <div id="actions">
      <button aria-label="Copiar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><rect x="8" y="7" width="13" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/></svg></button>
@@ -368,19 +371,125 @@ svg{display:block}
  const composer=document.getElementById('composer'),field=document.getElementById('text-field');
  const sendVoice=document.getElementById('sendVoice'),jump=document.getElementById('jump');
  const $=id=>document.getElementById(id);
- const animals=[
- 'Cachorro','Gato','Elefante','Leão','Tigre','Girafa','Zebra','Macaco','Gorila','Chimpanzé',
- 'Urso','Panda','Coelho','Cavalo','Vaca','Porco','Ovelha','Cabra','Galinha','Pato',
- 'Ganso','Peru','Pavão','Pinguim','Águia','Coruja','Papagaio','Tucano','Avestruz','Cisne',
- 'Baleia','Golfinho','Tubarão','Orca','Foca-leopardo','Pássaro','Lobo','Raposa','Hiena','Suricato',
- 'Anta','Capivara','Tamanduá','Tatu','Preguiça','Rinoceronte','Hipopótamo','Búfalo','Camelo','Lhama',
- 'Alpaca','Esquilo','Castor','Javali','Leopardo','Pantera','Flamingo','Pelicano','Falcão','Beija-flor',
- 'Golfinho','Cavala','Tubarão','Orca','Polvo','Lula','Água-viva','Estrela-do-mar','Cavalo-marinho','Peixe-palhaço',
- 'Peixe-espada','Arraia','Foca','Leão-marinho','Morsa','Lontra','Crocodilo','Jacaré','Tartaruga',
- 'Jabuti','Cobra','Lagarto','Camaleão','Iguana','Sapo','Rã','Salamandra','Borboleta','Abelha',
- 'Formiga','Joaninha','Besouro','Barata','Mosquito','Libélula','Grilo','Gafanhoto','Aranha','Escorpião','Caracol'
+ // Source-of-truth category and list logic copied from Joaninha v48
+ function normalise(value){
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ }
+ // v26: semantic-lite catalog matching. Intent is required, keywords alone are not.
+ // All matching ignores accent/case and respects word boundaries.
+ const SPECIAL_LENGTHS={aura:31,familiareszoologicos:31,contatoespiritual:18};
+ const LIST_CATEGORIES=[
+  {file:'animais',label:'animais',terms:['animal','animais','bicho','bichos','fauna','especies de animais']},
+  {file:'celebridades',label:'celebridades',terms:['celebridade','celebridades','famoso','famosos','famosa','famosas','pessoas famosas','pessoa famosa','personalidades','ator','atores','atriz','atrizes','artista','artistas','estrelas de hollywood']},
+  {file:'filmes',label:'filmes',terms:['filme','filmes','cinema','longa metragem','longas metragens','classicos do cinema']},
+  {file:'musicas',label:'músicas',terms:['musica','musicas','cancao','cancoes','hits','sucessos musicais','faixas']},
+  {file:'insetos',label:'insetos',terms:['inseto','insetos']},
+  {file:'cervejas',label:'cervejas',terms:['cerveja','cervejas','marcas de cerveja']},
+  {file:'hobbies',label:'hobbies',terms:['hobby','hobbies','passatempo','passatempos','atividades de lazer','tempo livre']},
+  {file:'perguntas',label:'perguntas',terms:['pergunta','perguntas','questao','questoes']},
+  {file:'pontosturisticos',label:'pontos turísticos',terms:['ponto turistico','pontos turisticos','atracoes turisticas','atracao turistica','monumento','monumentos','lugares famosos','lugares para visitar']},
+  {file:'aura',label:'auras',terms:['aura','auras','cores da aura','cores das auras']},
+  {file:'familiareszoologicos',label:'familiares zoológicos',terms:['familiar','familiares','familiares zoologicos','animais espirituais','animal espiritual','animal de poder','animais de poder']},
+  {file:'contatoespiritual',label:'perguntas para contato espiritual',terms:['espirito','espiritos','espiritual','espirituais','espiritualidade','contato espiritual','comunicacao espiritual']}
  ];
- const GPT_TEST_VERSION=20;
+ const LIST_REQUEST_INTENT=/\b(?:liste|listar|lista|listas|cite|citar|enumere|enumerar|mostre|mostrar|me de|me diga|me fale|diga|quero|gostaria|preciso|poderia|pode|quais|quantas|quantos|nomes|exemplos|sugira|sugestoes|relacione|faca uma lista)\b/;
+ // “Por que os insetos voam?” is informational, not a list request.
+ const EXPLANATORY_QUESTION=/^(?:por que|porque|como funciona|o que significa|o que e|qual e a causa|explique|me explique|quando|onde|quem e)\b/;
+ function hasListIntent(plain){
+  if(EXPLANATORY_QUESTION.test(plain))return false;
+  return LIST_REQUEST_INTENT.test(plain);
+ }
+ function termIndex(plain,term){
+  const escaped=term.replace(/\s+/g,'\\s+');
+  const found=new RegExp('(?:^|[^a-z0-9])'+escaped+'(?=$|[^a-z0-9])').exec(plain);
+  return found?found.index:-1;
+ }
+ function matchCategory(plain){
+  const matched=[];
+  for(const category of LIST_CATEGORIES){
+   let index=Infinity;
+   let matchLen=0;
+   for(const raw of category.terms){
+    const term=normalise(raw);
+    const at=termIndex(plain,term);
+    if(at>=0&&(at<index||(at===index&&term.length>matchLen))){index=at;matchLen=term.length;}
+   }
+   if(index!==Infinity)matched.push({...category,index,matchLen});
+  }
+  if(!matched.length)return null;
+  // A specific spiritual request wins over the generic "perguntas" keyword.
+  const spiritual=matched.find(c=>c.file==='contatoespiritual');
+  const family=matched.find(c=>c.file==='familiareszoologicos');
+  const aura=matched.find(c=>c.file==='aura');
+  // "animal espiritual" is about zoo familiars, not contact with spirits.
+  if(family&&/\b(?:animal|animais)\s+(?:espiritual|espirituais|de poder)\b/.test(plain))return family;
+  if(spiritual)return spiritual;
+  if(family)return family;
+  if(aura)return aura;
+  // The word "contato" on its own is ambiguous; tie it to a question context.
+  if(/\bcontatos?\b/.test(plain)&&/\b(?:pergunta|perguntas|questoes|questao|comunicacao)\b/.test(plain)){
+   return LIST_CATEGORIES.find(c=>c.file==='contatoespiritual');
+  }
+  matched.sort((a,b)=>a.index-b.index||b.matchLen-a.matchLen);
+  return matched[0];
+ }
+ function parseRequest(question){
+  const plain=normalise(question).trim();
+  if(!plain||!hasListIntent(plain))return null;
+  const category=matchCategory(plain);
+  if(!category)return null;
+  const countMatch=plain.match(/\b\d{1,5}\b/);
+  const explicitQuantity=countMatch?Number(countMatch[0]):null;
+  return {quantity:explicitQuantity,candidates:[{file:category.file,label:category.label}],plain};
+ }
+ async function fetchListFile(category){
+  if(!category||!/^[a-z0-9]+$/.test(category))throw Error('categoria invalida');
+  const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=48&ts='+Date.now(),{cache:'no-store'});
+  if(!response.ok)throw Error('lista nao disponivel');
+  const raw=await response.text();
+  return raw.replace(/^\uFEFF/,'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+ }
+ async function resolveList(request){
+  if(!request)throw Error('pedido invalido');
+  const candidate=request.candidates[0];
+  const items=await fetchListFile(candidate.file);
+  const special=SPECIAL_LENGTHS[candidate.file];
+  if(special!==undefined&&items.length!==special)throw Error('lista especial inconsistente');
+  const quantity=special??(request.quantity??items.length);
+  if(!Number.isInteger(quantity)||quantity<1||quantity>items.length)throw Error('quantidade indisponivel');
+  return {...candidate,items,quantity};
+ }
+ // A natural answer header, using the meaning of the recognized request.
+ function introForRequest(request,resolved){
+  const q=resolved.quantity,plain=request.plain;
+  if(resolved.file==='contatoespiritual'){
+   if(/\b(?:falar|conversar|comunicar|dialogar)\b.*\b(?:espirito|espiritos)\b/.test(plain))
+    return 'Aqui estão as '+q+' perguntas para falar com '+(plain.includes('espiritos')?'espíritos':'espírito')+':';
+   return 'Aqui estão as '+q+' perguntas para contato espiritual:';
+  }
+  if(resolved.file==='aura')return 'Aqui estão as '+q+' cores das auras e seus significados:';
+  if(resolved.file==='familiareszoologicos')return 'Aqui estão os '+q+' familiares zoológicos:';
+  return 'Aqui estão '+q+' '+resolved.label+':';
+ }
+ function arrange(items,position,quantity,category){
+  if(!Number.isInteger(position)||position<1||position>quantity)throw Error('codigo fora da lista');
+  if(category==='familiareszoologicos'){
+   // Reserve Panda at the chosen position and Raposa at 20, except when
+   // Panda is at 20: Raposa immediately follows at 21.
+   if(quantity!==31||items.length!==31)throw Error('familiares exige 31 itens');
+   const out=Array(31);
+   out[position-1]=items[0];
+   out[(position===20?21:20)-1]=items[1];
+   let next=2;
+   for(let i=0;i<out.length;i++)if(out[i]===undefined)out[i]=items[next++];
+   if(next!==items.length)throw Error('lista incompleta');
+   return out;
+  }
+  const ordered=items.slice(1,quantity);
+  ordered.splice(position-1,0,items[0]);
+  return ordered;
+ }
+ const GPT_TEST_VERSION=21;
  let scene='home', keyboard=false, draft='', drawer=false, hub=false, generating=false, timer=null, longTimer=null, wasLong=false;
  let temporaryChat=false;
  let keyboardMode='letters',shiftNext=true,capsLocked=false,caretPos=0;
@@ -435,17 +544,71 @@ svg{display:block}
   requestAnimationFrame(()=>diag.snapshot('keyboard-after-change',true));
   return true;
  }
- function makeList(){
-  const fragment=document.createDocumentFragment();
-  animals.forEach((animal,i)=>{
-   const row=document.createElement('div');row.className='row';
-   const n=document.createElement('span');n.className='number';n.textContent=String(i+1)+'.';
-   const w=document.createElement('span');w.className='word';w.textContent=animal;
-   row.append(n,w);fragment.appendChild(row);
-  });
-  list.replaceChildren(fragment);
+ // Cancel only superseded requests, never alter an active keyboard
+ let replyToken=0;
+ function cancelReply(){
+  replyToken++;
+  stopAuto();
  }
- makeList();
+ function appendReplyRow(item,index,forcedPosition){
+  const row=document.createElement('div');row.className='row';
+  const number=document.createElement('span');number.className='number';
+  number.textContent=String(index+1)+'.';
+  const word=document.createElement('span');word.className='word';
+  word.textContent=item;
+  row.append(number,word);
+  // Prepared item stays visible until a separate reveal function is approved
+  if(forcedPosition!==null&&index===forcedPosition-1)row.dataset.forceIndex=String(forcedPosition);
+  list.appendChild(row);
+ }
+ async function startReply(message,forcedPosition=null,options=null){
+  const token=++replyToken;
+  stopAuto();
+  draft='';caretPos=0;capsLocked=false;shiftNext=true;
+  setSecretMode(false);refreshLetterLabels();updateComposer();
+  $('bubble-row').querySelector('.bubble').textContent=message;
+  const intro=$('answerIntro');
+  intro.textContent='';
+  list.replaceChildren();
+  showScene('thinking',options);
+  generating=true;updateComposer();
+  const thinkingFinished=new Promise(resolve=>setTimeout(resolve,2500));
+  try{
+   const request=parseRequest(message);
+   const resolved=await resolveList(request);
+   await thinkingFinished;
+   if(token!==replyToken)return;
+   if(forcedPosition!==null&&(!Number.isInteger(forcedPosition)||forcedPosition<1||forcedPosition>resolved.quantity)){
+    throw new Error('Posição secreta fora dos limites da lista');
+   }
+   const ordered=forcedPosition===null?
+    resolved.items.slice(0,resolved.quantity):
+    arrange(resolved.items,forcedPosition,resolved.quantity,resolved.file);
+   intro.textContent=introForRequest(request,resolved);
+   showScene('list');
+   generating=true;updateComposer();
+   let count=0;
+   const emit=()=>{
+    if(token!==replyToken)return;
+    if(count>=ordered.length){
+     timer=null;showScene('end');generating=false;updateComposer();refreshJump();
+     return;
+    }
+    appendReplyRow(ordered[count],count,forcedPosition);
+    count++;refreshJump();
+    if(count<ordered.length)timer=setTimeout(emit,76+(count%7===0?90:0));
+    else{timer=null;showScene('end');generating=false;updateComposer();refreshJump();}
+   };
+   timer=setTimeout(emit,250);
+  }catch(error){
+   await thinkingFinished;
+   if(token!==replyToken)return;
+   intro.textContent='Desculpe, estou com dificuldade para responder no momento. Tente novamente mais tarde.';
+   list.replaceChildren();
+   timer=null;showScene('end');generating=false;updateComposer();refreshJump();
+   diag.event('list-request-error',{type:error?.message==='Posição secreta fora dos limites da lista'?'position':'request'});
+  }
+ }
  function refreshJump(){
   if(scene!=='list'&&scene!=='thinking'&&scene!=='end'){jump.classList.remove('visible');return;}
   const delta=scroller.scrollHeight-scroller.scrollTop-scroller.clientHeight;
@@ -537,6 +700,7 @@ svg{display:block}
  }
  function showScene(next,options){
   if(!['home','thinking','list','end'].includes(next))return;
+  if(next==='home')cancelReply();
   if(temporaryChat)setTemporaryChat(false);
   diag.event('scene-change',{from:scene,to:next});
   stopAuto();scene=next;
@@ -552,25 +716,14 @@ svg{display:block}
   });
   if(options&&options.closeDrawer)setDrawer(false);
  }
- function startDemo(){
-  showScene('thinking');
-  generating=true;
-  timer=setTimeout(()=>{
-   timer=null;showScene('list');
-   generating=true;
-   timer=setTimeout(()=>{
-    timer=null;generating=false;showScene('end');
-   },10000);
-  },2200);
- }
  function sendDraft(){
-  if(scene==='thinking'||scene==='list'){showScene('end');return;}
-  if(secretMode&&secretDigits.length!==2)return;
+  if(scene==='thinking'||scene==='list'){cancelReply();showScene('end');return;}
+  if(generating||(secretMode&&secretDigits.length!==2))return;
   if(!draft.trim()){setKeyboard(true);return;}
-  lastSecretPosition=secretMode?forcedSecretPosition():null;
-  $('bubble-row').querySelector('.bubble').textContent=draft.trim();
-  draft='';caretPos=0;capsLocked=false;shiftNext=true;setSecretMode(false);refreshLetterLabels();
-  startDemo();
+  const message=draft.trim();
+  const position=secretMode?forcedSecretPosition():null;
+  lastSecretPosition=position;
+  startReply(message,position);
  }
  $('top-menu').addEventListener('pointerdown',()=>{
   wasLong=false;clearTimeout(longTimer);
@@ -592,7 +745,7 @@ svg{display:block}
  $('drawerNew').addEventListener('click',()=>showScene('home',{closeDrawer:true}));
  $('recentAnimals').addEventListener('click',()=>{
   if(latestTestVersion!==null&&latestTestVersion>GPT_TEST_VERSION){applyAvailableTestUpdate();return;}
-  showScene('list',{closeDrawer:true});
+  startReply('Liste 100 animais',null,{closeDrawer:true});
  });
  // Only a downward swipe starting inside the message field dismisses
  let fieldGesture=null,swallowFieldClick=false;
