@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ChatGPT">
-<link rel="manifest" href="manifest.webmanifest?v=41">
-<link rel="apple-touch-icon" href="icon-192.png?v=41">
+<link rel="manifest" href="manifest.webmanifest?v=42">
+<link rel="apple-touch-icon" href="icon-192.png?v=42">
 <title>ChatGPT</title>
 <style>
 :root{color-scheme:dark;--bg:#000;--fg:#f5f5f5;--muted:#9b9b9d;--surface:#222224;--surface2:#2d2d30;--outline:#38383b;--header-h:60px;--app-height:100dvh;--app-full-height:100dvh}
@@ -40,15 +40,19 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
 html.full-screen-standalone,
 html.full-screen-standalone body{height:var(--app-full-height,100%)}
 html.full-screen-standalone body{position:relative}
-/* v41: never switch back to fixed positioning when the iOS keyboard opens.
-   The app uses one absolute coordinate system, compensated for native viewport
-   panning even if the document itself has scrollY=0. */
+/* v42: iOS standalone keeps the same physical-height app canvas during
+   keyboard animations. Only the footer moves to follow the visual viewport.
+   pageTop anchors the canvas to the visual viewport without reading a body
+   rectangle that can be inconsistent during WebKit's asynchronous panning. */
 html.full-screen-standalone .app{
- --composer-bottom-offset:0px;
+ --composer-bottom-offset:var(--keyboard-cover,0px);
  position:absolute;
  top:var(--app-visible-origin,0px);left:0;
- height:var(--app-height,100dvh);
+ height:var(--app-full-height,100dvh);
  padding-bottom:0;
+}
+html.full-screen-standalone .app.keyboard-open{
+ --composer-bottom-offset:var(--keyboard-cover,0px);
 }
 .app.keyboard-open{--composer-bottom-offset:0px}
 .app-header{height:var(--header-h);min-height:var(--header-h);padding:8px 17px 6px;display:grid;grid-template-columns:42px 1fr 42px;align-items:center;position:relative;z-index:3;background:transparent}
@@ -429,7 +433,7 @@ html.full-screen-standalone .app{
   </header>
   <main class="conversation" id="conversation" aria-label="Conversa">
     <section class="welcome" id="welcome">
-      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=41" alt="" aria-hidden="true">
+      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=42" alt="" aria-hidden="true">
       <h1 class="welcome-title" data-edit-key="welcome-title">Como posso ajudar?</h1>
     </section>
     <section class="messages" id="messages" aria-live="off"></section>
@@ -904,7 +908,7 @@ function parseRequest(question){
 }
 async function fetchListFile(category){
  if(!category||!/^[a-z0-9]+$/.test(category))throw Error('categoria invalida');
- const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=41&ts='+Date.now(),{cache:'no-store'});
+ const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=42&ts='+Date.now(),{cache:'no-store'});
  if(!response.ok)throw Error('lista nao disponivel');
  const raw=await response.text();
  return raw.replace(/^\uFEFF/,'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -1858,7 +1862,7 @@ function makeLayoutBackup(){
  return {
   format:LAYOUT_BACKUP_FORMAT,
   schemaVersion:LAYOUT_BACKUP_SCHEMA,
-  appVersion:41,
+  appVersion:42,
   exportedAt:new Date().toISOString(),
   settings:cloneProfiles(editing?draftOffsets:savedOffsets)
  };
@@ -2018,7 +2022,6 @@ function resizeToViewport(){
  const w=Math.round(vv?.width||window.innerWidth);
  const top=Math.round(vv?.offsetTop||0);
  const left=Math.round(vv?.offsetLeft||0);
- // The tallest unobscured reading is the reference for keyboard detection.
  if(h>baselineHeight)baselineHeight=h;
  const open=h<baselineHeight-130;
  keyboardIsOpen=open;
@@ -2032,18 +2035,32 @@ function resizeToViewport(){
  const fullHeight=Math.max(Math.round(screen.height),Math.round(window.innerHeight),h);
  const root=document.documentElement;
 
- // v41: iOS 26 may pan its native visual viewport without changing scrollY.
- // The entire app then appears ~80px above the keyboard, even though the
- // keyboard itself stays put. Keep the absolute app coordinate system on both
- // sides of keyboard transitions, and compensate the actual body displacement.
+ // Keep the standalone app canvas at a single physical-screen height.
+ // WebKit's visualViewport can shrink and pan separately when the keyboard
+ // animates, so changing the entire app height caused the header and list
+ // to jump even though the keyboard itself stayed in place.
  root.classList.toggle('full-screen-standalone',fullScreen);
  root.style.setProperty('--app-full-height',fullHeight+'px');
- if(fullScreen&&!open&&window.scrollY>0)window.scrollTo(0,0);
- const bodyTop=fullScreen?document.body.getBoundingClientRect().top:0;
- const visualOrigin=fullScreen&&Number.isFinite(bodyTop)?Math.round(-bodyTop):0;
- root.style.setProperty('--app-visible-origin',visualOrigin+'px');
- root.style.setProperty('--app-height',(fullScreen&&!open?fullHeight:h)+'px');
 
+ // pageTop is the visible viewport's absolute document-space origin.
+ // Do not estimate this from body.getBoundingClientRect or force scrollTo(0).
+ const pageTop=Number.isFinite(vv?.pageTop)?vv.pageTop
+   :(window.scrollY+top);
+ const origin=fullScreen?Math.round(pageTop):0;
+ root.style.setProperty('--app-visible-origin',origin+'px');
+
+ // The composer follows the keyboard, while the header and conversation stay
+ // on the full-height canvas. Ease in the normal safe-area discrepancy so
+ // opening/closing the keyboard cannot create an abrupt bottom jump.
+ const shrink=Math.max(0,baselineHeight-h);
+ const closedGap=Math.max(0,fullHeight-baselineHeight);
+ const fade=Math.min(1,shrink/Math.max(1,closedGap+50));
+ const keyboardCover=fullScreen?Math.round(shrink+closedGap*fade):0;
+ root.style.setProperty('--keyboard-cover',keyboardCover+'px');
+
+ // Keep --app-height scoped to measurements/editor controls; unlike v41,
+ // it never changes the canvas size of the standalone app.
+ root.style.setProperty('--app-height',h+'px');
  root.style.setProperty('--viewport-width',w+'px');
  root.style.setProperty('--viewport-top',top+'px');
  root.style.setProperty('--viewport-left',left+'px');
@@ -2077,7 +2094,7 @@ refreshComposerMeasure();
 // v21: atualização discreta no PRIMEIRO item das conversas recentes.
 // Nenhum redirecionamento automático, nem durante o force nem numa conversa aberta.
 // A consulta bypassa cache HTTP e volta a ser feita a cada abertura do menu.
-const GPT_FORCE_VERSION=41;
+const GPT_FORCE_VERSION=42;
 const DEFAULT_RECENT_TITLE='Quando usar por que e porque';
 let latestAvailableVersion=null;
 let updateCheckSequence=0;
