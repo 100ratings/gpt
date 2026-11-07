@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ChatGPT">
-<link rel="manifest" href="manifest.webmanifest?v=42">
-<link rel="apple-touch-icon" href="icon-192.png?v=42">
+<link rel="manifest" href="manifest.webmanifest?v=43">
+<link rel="apple-touch-icon" href="icon-192.png?v=43">
 <title>ChatGPT</title>
 <style>
 :root{color-scheme:dark;--bg:#000;--fg:#f5f5f5;--muted:#9b9b9d;--surface:#222224;--surface2:#2d2d30;--outline:#38383b;--header-h:60px;--app-height:100dvh;--app-full-height:100dvh}
@@ -40,14 +40,14 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
 html.full-screen-standalone,
 html.full-screen-standalone body{height:var(--app-full-height,100%)}
 html.full-screen-standalone body{position:relative}
-/* v42: iOS standalone keeps the same physical-height app canvas during
-   keyboard animations. Only the footer moves to follow the visual viewport.
-   pageTop anchors the canvas to the visual viewport without reading a body
-   rectangle that can be inconsistent during WebKit's asynchronous panning. */
+/* v43: like Cinema's full-screen PWA, the installed app always starts at top 0.
+   Never use VisualViewport.pageTop to move the entire interface: WebKit may
+   change pageTop during focus and repeatedly pan the page when the canvas moves.
+   The full-height canvas stays fixed while only the composer tracks the keyboard. */
 html.full-screen-standalone .app{
  --composer-bottom-offset:var(--keyboard-cover,0px);
  position:absolute;
- top:var(--app-visible-origin,0px);left:0;
+ top:0;left:0;
  height:var(--app-full-height,100dvh);
  padding-bottom:0;
 }
@@ -433,7 +433,7 @@ html.full-screen-standalone .app.keyboard-open{
   </header>
   <main class="conversation" id="conversation" aria-label="Conversa">
     <section class="welcome" id="welcome">
-      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=42" alt="" aria-hidden="true">
+      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=43" alt="" aria-hidden="true">
       <h1 class="welcome-title" data-edit-key="welcome-title">Como posso ajudar?</h1>
     </section>
     <section class="messages" id="messages" aria-live="off"></section>
@@ -908,7 +908,7 @@ function parseRequest(question){
 }
 async function fetchListFile(category){
  if(!category||!/^[a-z0-9]+$/.test(category))throw Error('categoria invalida');
- const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=42&ts='+Date.now(),{cache:'no-store'});
+ const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=43&ts='+Date.now(),{cache:'no-store'});
  if(!response.ok)throw Error('lista nao disponivel');
  const raw=await response.text();
  return raw.replace(/^\uFEFF/,'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -1862,7 +1862,7 @@ function makeLayoutBackup(){
  return {
   format:LAYOUT_BACKUP_FORMAT,
   schemaVersion:LAYOUT_BACKUP_SCHEMA,
-  appVersion:42,
+  appVersion:43,
   exportedAt:new Date().toISOString(),
   settings:cloneProfiles(editing?draftOffsets:savedOffsets)
  };
@@ -2042,13 +2042,9 @@ function resizeToViewport(){
  root.classList.toggle('full-screen-standalone',fullScreen);
  root.style.setProperty('--app-full-height',fullHeight+'px');
 
- // pageTop is the visible viewport's absolute document-space origin.
- // Do not estimate this from body.getBoundingClientRect or force scrollTo(0).
- const pageTop=Number.isFinite(vv?.pageTop)?vv.pageTop
-   :(window.scrollY+top);
- const origin=fullScreen?Math.round(pageTop):0;
- root.style.setProperty('--app-visible-origin',origin+'px');
-
+ // The main canvas is anchored at top:0 and never follows pageTop.
+ // The system may pan the visual viewport while focusing the textarea, but
+ // repeated panning must not feed back into the document's root positioning.
  // The composer follows the keyboard, while the header and conversation stay
  // on the full-height canvas. Ease in the normal safe-area discrepancy so
  // opening/closing the keyboard cannot create an abrupt bottom jump.
@@ -2074,11 +2070,19 @@ function scheduleViewportUpdate(){
  pendingViewportFrame=requestAnimationFrame(()=>{pendingViewportFrame=0;resizeToViewport();});
 }
 if(window.visualViewport){
+ // Resize is the only visualViewport event that changes composer geometry.
+ // Do not recalculate the whole interface during visualViewport pan/scroll.
  window.visualViewport.addEventListener('resize',scheduleViewportUpdate);
- window.visualViewport.addEventListener('scroll',scheduleViewportUpdate);
 }
 window.addEventListener('resize',scheduleViewportUpdate);
-window.addEventListener('scroll',scheduleViewportUpdate,{passive:true});
+window.addEventListener('scroll',()=>{
+ // Cinema's watchViewport prevents the document from scrolling as a whole;
+ // only the transcript itself is allowed to scroll.
+ if(document.documentElement.classList.contains('full-screen-standalone')&&window.scrollY!==0){
+  window.scrollTo(0,0);
+ }
+ scheduleViewportUpdate();
+},{passive:true});
 window.addEventListener('orientationchange',()=>setTimeout(scheduleViewportUpdate,250));
 for(const phase of ['focus','blur'])prompt.addEventListener(phase,()=>{
  scheduleViewportUpdate();
@@ -2094,7 +2098,7 @@ refreshComposerMeasure();
 // v21: atualização discreta no PRIMEIRO item das conversas recentes.
 // Nenhum redirecionamento automático, nem durante o force nem numa conversa aberta.
 // A consulta bypassa cache HTTP e volta a ser feita a cada abertura do menu.
-const GPT_FORCE_VERSION=42;
+const GPT_FORCE_VERSION=43;
 const DEFAULT_RECENT_TITLE='Quando usar por que e porque';
 let latestAvailableVersion=null;
 let updateCheckSequence=0;
