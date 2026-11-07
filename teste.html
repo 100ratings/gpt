@@ -489,7 +489,7 @@ svg{display:block}
   ordered.splice(position-1,0,items[0]);
   return ordered;
  }
- const GPT_TEST_VERSION=22;
+ const GPT_TEST_VERSION=23;
  let scene='home', keyboard=false, draft='', drawer=false, hub=false, generating=false, timer=null, longTimer=null, wasLong=false;
  let temporaryChat=false;
  let keyboardMode='letters',shiftNext=true,capsLocked=false,caretPos=0;
@@ -613,7 +613,7 @@ svg{display:block}
  function refreshJump(){
   if(scene!=='list'&&scene!=='thinking'&&scene!=='end'){jump.classList.remove('visible');return;}
   const delta=scroller.scrollHeight-scroller.scrollTop-scroller.clientHeight;
-  jump.classList.toggle('visible',delta>88 && scene!=='thinking' && scene!=='end');
+  jump.classList.toggle('visible',delta>88 && scene!=='thinking');
  }
  // Persistent text DOM, allows a real insertion point inside the fake field
  const inputLine=document.createElement('span');inputLine.className='input-line';
@@ -711,8 +711,8 @@ svg{display:block}
   if(next==='home'){draft='';caretPos=0;capsLocked=false;shiftNext=true;setSecretMode(false);refreshLetterLabels();}
   updateComposer();
   requestAnimationFrame(()=>{
-   if(next==='end'){scroller.scrollTop=scroller.scrollHeight;}
-   else scroller.scrollTop=0;
+   // Preserve the reader's scroll position at completion, never jump to the last item
+   if(next!=='end')scroller.scrollTop=0;
    refreshJump();
   });
   if(options&&options.closeDrawer)setDrawer(false);
