@@ -255,7 +255,7 @@ svg{display:block}
    <button class="drawer-recent">Privacidade grátis no Instagram</button>
   </div>
    <div class="drawer-title-row"><span class="drawer-title">ChatGPT</span><button class="drawer-search" id="searchChats" aria-label="Buscar conversa"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><circle cx="10.5" cy="10.5" r="7.5"/><path d="m16 16 5 5"/></svg></button></div>
-  <div class="drawer-actions"><button class="newchat-blue" id="drawerNew"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linejoin="round"><path d="M12 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-8M12 13l8-9m0 0h-6m6 0v6"/></svg>Chat</button><span class="drawer-avatar">MA</span></div>
+  <div class="drawer-actions"><button class="newchat-blue" id="drawerNew"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linejoin="round"><path d="M12 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-8M12 13l8-9m0 0h-6m6 0v6"/></svg>Chat</button><span class="drawer-avatar">DM</span></div>
  </aside>
  <main id="page">
   <header id="header">
@@ -356,7 +356,7 @@ svg{display:block}
  'Jabuti','Cobra','Lagarto','Camaleão','Iguana','Sapo','Rã','Salamandra','Borboleta','Abelha',
  'Formiga','Joaninha','Besouro','Barata','Mosquito','Libélula','Grilo','Gafanhoto','Aranha','Escorpião','Caracol'
  ];
- const GPT_TEST_VERSION=15;
+ const GPT_TEST_VERSION=16;
  let scene='home', keyboard=false, draft='', drawer=false, hub=false, generating=false, timer=null, longTimer=null, wasLong=false;
  let keyboardMode='letters',shiftNext=true,capsLocked=false,caretPos=0;
  // Exact letter-to-digit secret map from Joaninha main v48
