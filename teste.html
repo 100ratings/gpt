@@ -126,10 +126,14 @@ svg{display:block}
 #app.keyboard-on #jump{bottom:calc(var(--kbd-h) + 119px)}
 #composer{position:absolute;z-index:23;left:32px;right:32px;bottom:var(--composer-bottom);height:49px;border-radius:27px;display:flex;align-items:center;padding:0 7px 0 9px;gap:8px;background:rgba(27,27,29,.93);border:1px solid rgba(255,255,255,.13);box-shadow:inset 0 1px 0 rgba(255,255,255,.03);-webkit-backdrop-filter:blur(25px) saturate(160%);backdrop-filter:blur(25px) saturate(160%);transition:bottom .2s ease,left .2s ease,right .2s ease,height .2s ease}
 #composer>button{background:transparent;border:0;padding:0;display:grid;place-items:center;flex:none}
-#add{width:33px;height:40px}
+#add{width:33px;height:40px;touch-action:none;position:relative;-webkit-touch-callout:none}
 #add svg{width:26px;height:26px}
 #text-field{flex:1;min-width:0;color:#8b8b90;font-size:16.7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:38px;display:flex;align-items:center}
 #text-field.has-text{color:#f2f2f4}
+#text-field{touch-action:none;-webkit-touch-callout:none}
+#text-field .field-value{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+#text-field .blue-caret{display:none;flex:none;background:#4681fa;width:2px;height:22px;margin-left:2px;animation:caret 1.05s step-end infinite}
+#app.keyboard-on #text-field .blue-caret{display:inline-block}
 #mic{width:31px;height:40px}
 #mic svg{width:25px;height:25px}
 #sendVoice{border-radius:50%!important;width:34px;height:34px;background:var(--blue)!important;color:#fff}
@@ -141,7 +145,7 @@ svg{display:block}
 #composer.has-draft #voicePath{display:none}
 #app.keyboard-on #composer{left:12px;right:12px;bottom:calc(var(--kbd-h) + 12px);height:91px;border-radius:24px;display:grid;grid-template-columns:auto 1fr auto auto auto;grid-template-rows:42px 38px;gap:0 8px;padding:7px 8px 5px 11px}
 #app.keyboard-on #text-field{grid-column:1/6;grid-row:1;align-items:center;padding-left:3px;font-size:16.7px}
-#app.keyboard-on #text-field::before{content:"";height:22px;width:2px;margin-right:2px;background:#4c80fa;animation:caret 1.1s step-end infinite}
+/* Cursor now follows typed text */
 @keyframes caret{50%{opacity:0}}
 #app.keyboard-on #add{grid-column:1;grid-row:2;justify-self:start;width:33px}
 #app.keyboard-on #typingMeter{display:block;grid-column:3;grid-row:2}
@@ -280,6 +284,7 @@ svg{display:block}
   <button id="hub-close">Fechar controles</button>
  </section>
 </div>
+<script src="./teste-diag.js?v=3"></script>
 <script>
 (function(){
  'use strict';
@@ -301,11 +306,15 @@ svg{display:block}
  'Jabuti','Cobra','Lagarto','Camaleão','Iguana','Sapo','Rã','Salamandra','Borboleta','Abelha',
  'Formiga','Joaninha','Besouro','Barata','Mosquito','Libélula','Grilo','Gafanhoto','Aranha','Escorpião','Caracol'
  ];
- const GPT_TEST_VERSION=2;
+ const GPT_TEST_VERSION=3;
  let scene='home', keyboard=false, draft='', drawer=false, hub=false, generating=false, timer=null, longTimer=null, wasLong=false;
  let keyboardMode='letters';
  const isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
  const standalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+ const diag=window.JoaninhaDiagnostic({app,version:GPT_TEST_VERSION,
+  getState:()=>({scene,keyboard,keyboardMode,drawer,hub,
+   draftLength:draft.length,standalone,generating})
+ });
  if(!isIOS)app.classList.add('desktop-preview');
  function applyViewport(){
   const fullScreen=isIOS&&standalone&&screen.height>screen.width;
@@ -329,14 +338,24 @@ svg{display:block}
   hub=!!open;app.classList.toggle('hub-open',hub);
   if(hub)setDrawer(false);
  }
- function setKeyboard(open){
-  keyboard=!!open;
+ function setKeyboard(open,reason='unspecified'){
+  const next=!!open;
+  if(!next&&keyboard&&reason!=='prompt-swipe-down'){
+   diag.event('keyboard-close-prevented',{reason});
+   return false;
+  }
+  if(next===keyboard)return true;
+  diag.snapshot('keyboard-before-change',true);
+  diag.event('keyboard-change',{from:keyboard,to:next,reason});
+  keyboard=next;
   app.classList.toggle('keyboard-on',keyboard);
   hintText.textContent=keyboard?'Organize, filtre e refine suas playlists de sy…':'Anexar foto recente';
   photoThumb.textContent=keyboard?'▦':'▥';
   if(keyboard)scroller.scrollTop=Math.max(0,scroller.scrollTop);
   updateComposer();
   setTimeout(refreshJump,40);
+  requestAnimationFrame(()=>diag.snapshot('keyboard-after-change',true));
+  return true;
  }
  function makeList(){
   const fragment=document.createDocumentFragment();
@@ -359,16 +378,21 @@ svg{display:block}
   const hasDraft=!!draft.trim()&&!ongoing;
   composer.classList.toggle('has-draft',hasDraft);
   field.classList.toggle('has-text',!!draft);
-  field.textContent=draft||'Perguntar ao ChatGPT';
+  const value=document.createElement('span');
+  value.className='field-value';value.textContent=draft||'Perguntar ao ChatGPT';
+  const cursor=document.createElement('span');
+  cursor.className='blue-caret';cursor.setAttribute('aria-hidden','true');
+  field.replaceChildren(value,cursor);
   sendVoice.setAttribute('aria-label',ongoing?'Parar resposta':hasDraft?'Enviar mensagem':'Conversar por voz');
  }
  function showScene(next,options){
   if(!['home','thinking','list','end'].includes(next))return;
+  diag.event('scene-change',{from:scene,to:next});
   stopAuto();scene=next;
   app.classList.remove('scene-home','scene-thinking','scene-list','scene-end');
   app.classList.add('scene-'+next);
-  if(next!=='home')setKeyboard(false);
-  if(next==='home'){draft='';setKeyboard(false);}
+  // State transitions must never dismiss an already-open mock keyboard
+  if(next==='home')draft='';
   updateComposer();
   requestAnimationFrame(()=>{
    if(next==='end'){scroller.scrollTop=scroller.scrollHeight;}
@@ -413,10 +437,57 @@ svg{display:block}
   if(latestTestVersion!==null&&latestTestVersion>GPT_TEST_VERSION){applyAvailableTestUpdate();return;}
   showScene('list',{closeDrawer:true});
  });
- $('text-field').addEventListener('click',()=>{setKeyboard(true);});
- $('text-field').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();setKeyboard(true);}});
- $('add').addEventListener('click',()=>setKeyboard(!keyboard));
- $('mic').addEventListener('click',()=>setKeyboard(true));
+ // Only a downward swipe starting inside the message field dismisses
+ let fieldGesture=null,swallowFieldClick=false;
+ field.addEventListener('pointerdown',e=>{
+  if(!keyboard||!e.isPrimary)return;
+  fieldGesture={id:e.pointerId,x:e.clientX,y:e.clientY};
+  diag.event('prompt-swipe-start');
+ });
+ field.addEventListener('pointerup',e=>{
+  if(!fieldGesture||e.pointerId!==fieldGesture.id)return;
+  const dx=e.clientX-fieldGesture.x,dy=e.clientY-fieldGesture.y;
+  fieldGesture=null;
+  if(dy>=58&&Math.abs(dx)<=Math.max(45,dy*.55)){
+   swallowFieldClick=true;
+   diag.event('prompt-swipe-down',{distance:Math.round(dy)});
+   setKeyboard(false,'prompt-swipe-down');
+   e.preventDefault();
+   setTimeout(()=>{swallowFieldClick=false;},340);
+  }else diag.event('prompt-touch-without-dismiss');
+ });
+ field.addEventListener('pointercancel',()=>{fieldGesture=null;diag.event('prompt-gesture-cancel');});
+ $('text-field').addEventListener('click',()=>{
+  if(swallowFieldClick){swallowFieldClick=false;return;}
+  setKeyboard(true,'prompt-tap');
+ });
+ $('text-field').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();setKeyboard(true,'prompt-accessibility');}});
+ // Holding + for three seconds opens diagnostics, normal taps only open
+ let plusTimer=null,plusPress=null,plusHeld=false;
+ const plus=$('add');
+ plus.addEventListener('pointerdown',e=>{
+  if(!e.isPrimary)return;
+  plusHeld=false;clearTimeout(plusTimer);
+  plusPress={id:e.pointerId,x:e.clientX,y:e.clientY};
+  plusTimer=setTimeout(()=>{
+   if(!plusPress)return;
+   plusHeld=true;plusPress=null;
+   diag.event('diagnostics-open-longpress');diag.open();
+  },3000);
+ });
+ plus.addEventListener('pointermove',e=>{
+  if(plusPress&&Math.hypot(e.clientX-plusPress.x,e.clientY-plusPress.y)>14){
+   clearTimeout(plusTimer);plusTimer=null;plusPress=null;
+  }
+ });
+ const stopPlus=()=>{clearTimeout(plusTimer);plusTimer=null;plusPress=null;};
+ for(const ev of ['pointerup','pointercancel','pointerleave'])plus.addEventListener(ev,stopPlus);
+ plus.addEventListener('contextmenu',e=>e.preventDefault());
+ plus.addEventListener('click',e=>{
+  if(plusHeld){plusHeld=false;e.preventDefault();return;}
+  setKeyboard(true,'plus-tap');
+ });
+ $('mic').addEventListener('click',()=>setKeyboard(true,'microphone-tap'));
  $('sendVoice').addEventListener('click',()=>sendDraft());
  $('jump').addEventListener('click',()=>{scroller.scrollTo({top:scroller.scrollHeight,behavior:'smooth'});});
  scroller.addEventListener('scroll',refreshJump,{passive:true});
@@ -427,7 +498,7 @@ svg{display:block}
    const target=b.dataset.scene,action=b.dataset.action;
    setHub(false);
    if(target)showScene(target);
-   if(action==='keyboard')setKeyboard(!keyboard);
+   if(action==='keyboard')setKeyboard(true,'test-selector-open');
    if(action==='drawer')setDrawer(true);
   });
  }
@@ -468,8 +539,8 @@ svg{display:block}
     if(key==='123')button.setAttribute('aria-label','Mostrar teclado numérico');
     if(key==='ABC')button.setAttribute('aria-label','Voltar ao teclado alfabético');
     button.addEventListener('click',()=>{
-     if(key==='123'){keyboardMode='numbers';renderKeyboard();return;}
-     if(key==='ABC'){keyboardMode='letters';renderKeyboard();return;}
+     if(key==='123'){keyboardMode='numbers';diag.event('keyboard-layout-change',{mode:'numbers'});renderKeyboard();return;}
+     if(key==='ABC'){keyboardMode='letters';diag.event('keyboard-layout-change',{mode:'letters'});renderKeyboard();return;}
      if(key==='⌫')draft=draft.slice(0,-1);
      else if(key==='↵'){sendDraft();return;}
      else if(key==='espaço')draft+=' ';
@@ -549,11 +620,10 @@ svg{display:block}
  });
  // A desktop-only shortcut; not displayed on the iPhone reproduction
  window.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){setHub(false);setDrawer(false);setKeyboard(false);}
+  if(e.key==='Escape'){setHub(false);setDrawer(false);}
   if(e.ctrlKey&&e.shiftKey&&e.key.toLowerCase()==='t'){e.preventDefault();setHub(!hub);}
  });
  updateComposer();
- setKeyboard(false);
 })();
 </script>
 </body>
