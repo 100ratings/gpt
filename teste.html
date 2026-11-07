@@ -301,7 +301,9 @@ svg{display:block}
  'Jabuti','Cobra','Lagarto','Camaleão','Iguana','Sapo','Rã','Salamandra','Borboleta','Abelha',
  'Formiga','Joaninha','Besouro','Barata','Mosquito','Libélula','Grilo','Gafanhoto','Aranha','Escorpião','Caracol'
  ];
+ const GPT_TEST_VERSION=2;
  let scene='home', keyboard=false, draft='', drawer=false, hub=false, generating=false, timer=null, longTimer=null, wasLong=false;
+ let keyboardMode='letters';
  const isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
  const standalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
  if(!isIOS)app.classList.add('desktop-preview');
@@ -407,7 +409,10 @@ svg{display:block}
  $('more').addEventListener('click',()=>setHub(true));
  $('searchChats').addEventListener('click',()=>setHub(true));
  $('drawerNew').addEventListener('click',()=>showScene('home',{closeDrawer:true}));
- $('recentAnimals').addEventListener('click',()=>showScene('list',{closeDrawer:true}));
+ $('recentAnimals').addEventListener('click',()=>{
+  if(latestTestVersion!==null&&latestTestVersion>GPT_TEST_VERSION){applyAvailableTestUpdate();return;}
+  showScene('list',{closeDrawer:true});
+ });
  $('text-field').addEventListener('click',()=>{setKeyboard(true);});
  $('text-field').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();setKeyboard(true);}});
  $('add').addEventListener('click',()=>setKeyboard(!keyboard));
@@ -428,35 +433,104 @@ svg{display:block}
  }
  // The mock keyboard is intentionally not an input: no real iOS keyboard appears
  // and the two visual states stay stable for pixel-by-pixel comparison
- const keyRows=[
-  ['Q','W','E','R','T','Y','U','I','O','P'],
-  ['A','S','D','F','G','H','J','K','L'],
-  ['⇧','Z','X','C','V','B','N','M','⌫'],
-  ['123','☺','espaço','↵']
- ];
- ['kbTop','kbMiddle','kbBottom','kbControls'].forEach((id,rowIndex)=>{
-  const row=$(id);
-  keyRows[rowIndex].forEach((key,idx)=>{
-   const button=document.createElement('button');button.type='button';button.className='kb-key';
-   if((rowIndex===2&&(idx===0||idx===8))||(rowIndex===3&&key!=='espaço'))button.classList.add('kb-wide');
-   if(rowIndex===3){
-    if(key==='123')button.classList.add('kb-123');
-    else if(key==='☺')button.classList.add('kb-emoji');
-    else if(key==='espaço')button.classList.add('kb-space');
-    else button.classList.add('kb-return');
-   }
-   button.textContent=key==='espaço'?'':key;
-   if(key==='espaço')button.setAttribute('aria-label','Espaço');
-   button.addEventListener('click',()=>{
-    if(key==='⌫')draft=draft.slice(0,-1);
-    else if(key==='↵'){sendDraft();return;}
-    else if(key==='espaço')draft+=' ';
-    else if(key==='⇧'||key==='123'||key==='☺')return;
-    else draft+=key.toLowerCase();
-    updateComposer();
+ // The keyboard is HTML only, it never focuses an iOS input
+ const keyboardLayouts={
+  letters:[
+   ['Q','W','E','R','T','Y','U','I','O','P'],
+   ['A','S','D','F','G','H','J','K','L'],
+   ['⇧','Z','X','C','V','B','N','M','⌫'],
+   ['123','☺','espaço','↵']
+  ],
+  numbers:[
+   ['1','2','3','4','5','6','7','8','9','0'],
+   ['-','/',':',';','(',')','$','&','@','"'],
+   ['#+=','.',',','?','!',"'",'⌫'],
+   ['ABC','☺','espaço','↵']
+  ]
+ };
+ function renderKeyboard(){
+  const layout=keyboardLayouts[keyboardMode];
+  ['kbTop','kbMiddle','kbBottom','kbControls'].forEach((id,rowIndex)=>{
+   const row=$(id);
+   row.replaceChildren();
+   layout[rowIndex].forEach((key,idx)=>{
+    const button=document.createElement('button');
+    button.type='button';button.className='kb-key';
+    if((rowIndex===2&&(idx===0||idx===layout[rowIndex].length-1))||(rowIndex===3&&key!=='espaço'))button.classList.add('kb-wide');
+    if(rowIndex===3){
+     if(key==='123'||key==='ABC')button.classList.add('kb-123');
+     else if(key==='☺')button.classList.add('kb-emoji');
+     else if(key==='espaço')button.classList.add('kb-space');
+     else button.classList.add('kb-return');
+    }
+    button.textContent=key==='espaço'?'':key;
+    if(key==='espaço')button.setAttribute('aria-label','Espaço');
+    if(key==='123')button.setAttribute('aria-label','Mostrar teclado numérico');
+    if(key==='ABC')button.setAttribute('aria-label','Voltar ao teclado alfabético');
+    button.addEventListener('click',()=>{
+     if(key==='123'){keyboardMode='numbers';renderKeyboard();return;}
+     if(key==='ABC'){keyboardMode='letters';renderKeyboard();return;}
+     if(key==='⌫')draft=draft.slice(0,-1);
+     else if(key==='↵'){sendDraft();return;}
+     else if(key==='espaço')draft+=' ';
+     else if(key==='⇧'||key==='#+='||key==='☺')return;
+     else draft+=keyboardMode==='letters'?key.toLowerCase():key;
+     updateComposer();
+    });
+    row.appendChild(button);
    });
-   row.appendChild(button);
   });
+ }
+ renderKeyboard();
+ // Local-only prototype update channel, separate from v48 Joaninha updates
+ let latestTestVersion=null,updateCheckSequence=0,testUpdateInProgress=false;
+ const recentAnimals=$('recentAnimals');
+ function renderAvailableTestUpdate(version){
+  latestTestVersion=Number.isSafeInteger(version)&&version>GPT_TEST_VERSION?version:null;
+  const available=latestTestVersion!==null;
+  recentAnimals.textContent=available?'Deseja atualizar o app':'Lista de animais';
+  recentAnimals.classList.toggle('update-ready',available);
+  recentAnimals.setAttribute('aria-label',available?'Deseja atualizar o app, toque para atualizar':'Lista de animais');
+ }
+ async function checkForTestUpdate(){
+  if(location.protocol==='file:'||document.visibilityState==='hidden')return;
+  const sequence=++updateCheckSequence;
+  try{
+   const url=new URL('./teste-version.json',document.baseURI);
+   url.searchParams.set('ts',String(Date.now()));
+   const response=await fetch(url.href,{cache:'no-store'});
+   if(!response.ok)throw new Error('Marcador indisponível');
+   const data=await response.json();
+   const latest=Number(data.version);
+   if(!Number.isSafeInteger(latest)||latest<1)throw new Error('Versão inválida');
+   if(sequence===updateCheckSequence)renderAvailableTestUpdate(latest);
+  }catch(error){
+   // Offline, keep Lista de animais usable, never block navigation
+  }
+ }
+ async function applyAvailableTestUpdate(){
+  if(testUpdateInProgress||latestTestVersion===null||latestTestVersion<=GPT_TEST_VERSION)return;
+  testUpdateInProgress=true;
+  const url=new URL('./teste.html',document.baseURI);
+  url.searchParams.set('v',String(latestTestVersion));
+  url.searchParams.set('ts',String(Date.now()));
+  try{
+   const response=await fetch(url.href,{cache:'no-store'});
+   if(!response.ok)throw new Error('HTML indisponível');
+   const source=await response.text();
+   const match=source.match(/const GPT_TEST_VERSION\s*=\s*(\d+)\s*;/);
+   if(!match||Number(match[1])<latestTestVersion)throw new Error('Publicação em andamento');
+   location.replace(url.href);
+  }catch(error){
+   testUpdateInProgress=false;
+   recentAnimals.textContent='Atualização indisponível, tente novamente';
+   setTimeout(()=>renderAvailableTestUpdate(latestTestVersion),2200);
+  }
+ }
+ $('top-menu').addEventListener('click',()=>checkForTestUpdate());
+ window.addEventListener('pageshow',()=>checkForTestUpdate());
+ document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible')checkForTestUpdate();
  });
  let touchX=0,touchY=0;
  page.addEventListener('touchstart',e=>{
