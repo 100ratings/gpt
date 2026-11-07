@@ -1,7 +1,7 @@
 /* Opt-in Joaninha keyboard diagnosis v3, no keylogging or network upload */
 (function(){
 'use strict';
-const KEY='joaninha-test-diagnostics-v3',MAX=4500;
+const KEY='joaninha-test-diagnostics-v7',MAX=18000;
 const CSS=[
  '#jdShade{position:absolute;inset:0;z-index:110;background:#000b;display:none}',
  '#jdPanel{position:absolute;z-index:111;left:12px;right:12px;bottom:calc(var(--safe-bottom,30px) + 10px);max-height:76%;overflow:auto;padding:18px;border:1px solid #555;border-radius:24px;background:rgba(29,29,33,.97);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);box-shadow:0 10px 45px #000e;display:none}',
@@ -27,16 +27,17 @@ window.JoaninhaDiagnostic=function({app,getState,version}){
  const shade=document.createElement('div');shade.id='jdShade';
  const panel=document.createElement('section');panel.id='jdPanel';
  panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');panel.setAttribute('aria-labelledby','jdTitle');
- panel.innerHTML='<div class="jdHeading"><span id="jdTitle">Diagnóstico do teclado</span><button id="jdDismiss" aria-label="Fechar">×</button></div>'+
-  '<p class="jdHelp">Inicie a captura, feche esta janela e use o teclado normalmente, os registros continuam até você tocar em Parar</p>'+
+ panel.innerHTML='<div class="jdHeading"><span id="jdTitle">Diagnóstico completo de toques</span><button id="jdDismiss" aria-label="Fechar">×</button></div>'+
+  '<p class="jdHelp">Inicie a captura, feche esta janela e toque em qualquer região do aplicativo, inclusive onde nada acontece, os registros continuam até você tocar em Parar</p>'+
   '<div id="jdStatus" role="status" aria-live="polite">Captura desligada</div>'+
   '<div class="jdButtons"><button id="jdStart">Iniciar</button><button id="jdStop" disabled>Parar</button><button id="jdExport" disabled>Exportar</button></div>'+
   '<p id="jdSuggestion">Captura concluída, toque em Exportar para enviar o arquivo JSON</p>'+
-  '<p class="jdPrivacy">Registra apenas medidas, eventos e tamanho da mensagem, nunca o texto, caracteres digitados, senhas ou códigos, nada é enviado automaticamente</p>';
+  '<p class="jdPrivacy">Atenção: coordenadas sobre as teclas podem revelar o que foi digitado, não digite senhas durante a captura, nenhuma mensagem é gravada diretamente e nada é enviado automaticamente</p>';
  app.append(shade,panel);
  const $=id=>document.getElementById(id);
  const startBtn=$('jdStart'),stopBtn=$('jdStop'),exportBtn=$('jdExport');
  let active=false,events=[],started='',t0=0,tick=null,raf=0,lastSig='',lastSnapshot=0;
+ let touchStats={downs:0,ups:0,moves:0,cancels:0,clicks:0,keys:0,misses:0},pointers=new Map();
  let lastPersist=0,lastUi=0,anomalies=0,overflow=0,interrupted=false;
  const round=n=>Number.isFinite(n)?Math.round(n*10)/10:null;
  const elapsed=()=>Math.round(Math.max(0,performance.now()-t0));
@@ -50,10 +51,90 @@ window.JoaninhaDiagnostic=function({app,getState,version}){
   events.push({ms:elapsed(),kind,...data});
   if(events.length>MAX){
    const n=events.length-MAX;
-   events.splice(30,n);overflow+=n;
+   events.splice(35,n);overflow+=n;
   }
   if(performance.now()-lastUi>1150){lastUi=performance.now();render();}
  }
+
+ // Records every received touch in capture phase, including inactive regions.
+ // Never reads text, aria-label, inputs or typed character values.
+ function hitInfo(target,x,y){
+  const el=target?.nodeType===1?target:target?.parentElement;
+  if(!el)return {zone:'unknown'};
+  const key=el.closest('.kb-key');
+  if(key){
+   const row=key.parentElement,r=key.getBoundingClientRect();
+   const kind=key.classList.contains('kb-space')?'space':
+    key.classList.contains('kb-shift')?'shift':
+    key.classList.contains('kb-123')?'layout':
+    key.classList.contains('kb-return')?'return':
+    key.classList.contains('kb-emoji')?'emoji':
+    key.classList.contains('kb-wide')?'special':'character';
+   return {zone:'keyboard-key',row:row.id,col:Array.prototype.indexOf.call(row.children,key),
+    kind,mode:getState().keyboardMode,
+    rect:{x:round(r.x),y:round(r.y),w:round(r.width),h:round(r.height)},
+    local:{x:round(x-r.x),y:round(y-r.y)}};
+  }
+  const region=el.closest('#jdPanel,#jdShade,#keyboard,#composer,#header,#drawer,#threadScroll,#page,#app');
+  const control=el.closest('button'),r=(control||region||el).getBoundingClientRect();
+  return {zone:region?.id||'other',id:control?.id||el.id||region?.id||null,
+   rect:{x:round(r.x),y:round(r.y),w:round(r.width),h:round(r.height)},
+   local:{x:round(x-r.x),y:round(y-r.y)}};
+ }
+ function touchDown(e){
+  if(!active)return;
+  touchStats.downs++;
+  const x=e.clientX,y=e.clientY,hit=hitInfo(e.target,x,y);
+  pointers.set(e.pointerId,{at:performance.now(),x,y,lastX:x,lastY:y,
+   lastAt:0,moves:0,committed:0,hit});
+  record('pointerdown',{pointerId:e.pointerId,pointerType:e.pointerType,
+   primary:!!e.isPrimary,x:round(x),y:round(y),hit});
+ }
+ function touchMove(e){
+  if(!active)return;
+  const state=pointers.get(e.pointerId);if(!state)return;
+  const now=performance.now(),dx=e.clientX-state.lastX,dy=e.clientY-state.lastY;
+  if(now-state.lastAt<35||Math.hypot(dx,dy)<6)return;
+  touchStats.moves++;state.moves++;state.lastX=e.clientX;state.lastY=e.clientY;state.lastAt=now;
+  record('pointermove',{pointerId:e.pointerId,x:round(e.clientX),y:round(e.clientY),
+   dx:round(e.clientX-state.x),dy:round(e.clientY-state.y),hit:hitInfo(e.target,e.clientX,e.clientY)});
+ }
+ function touchFinish(e,canceled){
+  if(!active)return;
+  touchStats[canceled?'cancels':'ups']++;
+  const p=pointers.get(e.pointerId),hit=hitInfo(e.target,e.clientX,e.clientY);
+  if(p){
+   const durationMs=Math.round(performance.now()-p.at);
+   record(canceled?'pointercancel':'pointerup',{pointerId:e.pointerId,x:round(e.clientX),
+    y:round(e.clientY),hit,durationMs,moves:p.moves,committed:p.committed,
+    dx:round(e.clientX-p.x),dy:round(e.clientY-p.y),
+    distance:round(Math.hypot(e.clientX-p.x,e.clientY-p.y))});
+   if(p.hit.zone==='keyboard-key'&&!p.committed){
+    touchStats.misses++;
+    record('possible-missed-key',{pointerId:e.pointerId,start:p.hit,end:hit,durationMs});
+   }
+  }else record('pointerup-without-start',{pointerId:e.pointerId,x:round(e.clientX),y:round(e.clientY),hit});
+  pointers.delete(e.pointerId);
+ }
+ function touchClick(e){
+  if(!active)return;
+  touchStats.clicks++;
+  record('click',{x:round(e.clientX),y:round(e.clientY),detail:e.detail,
+   hit:hitInfo(e.target,e.clientX,e.clientY)});
+ }
+ function keyAction(meta){
+  if(!active)return;
+  const p=meta.pointerId==null?null:pointers.get(meta.pointerId);
+  if(p)p.committed++;
+  touchStats.keys++;
+  record('key-action',{source:meta.source||'unknown',pointerId:meta.pointerId??null,
+   row:meta.row??null,col:meta.col??null,kind:meta.kind||'character',
+   action:meta.action||'commit',mode:meta.mode||null,
+   before:meta.before??null,after:meta.after??null,
+   caretBefore:meta.caretBefore??null,caretAfter:meta.caretAfter??null,
+   processingMs:round(meta.processingMs),sinceDownMs:p?round(performance.now()-p.at):null});
+ }
+
  function snapshot(reason,force=false){
   if(!active)return;
   const state=getState(),root=document.documentElement,vv=window.visualViewport;
@@ -98,15 +179,15 @@ window.JoaninhaDiagnostic=function({app,getState,version}){
  function persist(){
   if(!events.length)return;
   lastPersist=performance.now();
-  const partial=events.length>680;
-  const subset=partial?events.slice(0,30).concat(events.slice(-650)):events;
-  try{localStorage.setItem(KEY,JSON.stringify({format:'joaninha-diag-v3',started,
-   version,active,events:subset,count:events.length,anomalies,overflow,partial}));}catch(err){}
+  const partial=events.length>1100;
+  const subset=partial?events.slice(0,35).concat(events.slice(-1065)):events;
+  try{localStorage.setItem(KEY,JSON.stringify({format:'joaninha-touch-diagnostic-v7',started,
+   version,active,events:subset,count:events.length,anomalies,overflow,partial,touchStats}));}catch(err){}
  }
  function render(msg){
   const secs=active?Math.round(elapsed()/1000):(events.length?Math.round(events[events.length-1].ms/1000):0);
   $('jdStatus').textContent=msg||((active?'Gravando':'Captura parada')+'\n'+secs+' s · '+events.length+
-    ' registros\n'+anomalies+' anomalias detectadas'+(interrupted?'\nRegistros recuperados após interrupção':''));
+    ' registros\nToques: '+touchStats.downs+' · Teclas: '+touchStats.keys+'\nPossíveis toques perdidos: '+touchStats.misses+' · Anomalias: '+anomalies+(interrupted?'\nRegistros recuperados após interrupção':''));
   app.classList.toggle('jd-running',active);
   app.classList.toggle('jd-ready',!active&&events.length>0);
   startBtn.disabled=active;stopBtn.disabled=!active;exportBtn.disabled=active||!events.length;
@@ -117,12 +198,13 @@ window.JoaninhaDiagnostic=function({app,getState,version}){
   if(tick!==null)clearInterval(tick);
   if(raf){cancelAnimationFrame(raf);raf=0;}
   active=true;events=[];anomalies=0;overflow=0;interrupted=false;
+  touchStats={downs:0,ups:0,moves:0,cancels:0,clicks:0,keys:0,misses:0};pointers=new Map();
   started=new Date().toISOString();t0=performance.now();
   lastSig='';lastSnapshot=0;lastPersist=0;lastUi=0;
   record('event',{name:'start',version});snapshot('baseline',true);
   // The sampled layout work must never compete with rapid typing.
   // State transitions and important events still trigger immediate captures.
-  tick=setInterval(()=>{if(document.visibilityState==='visible')snapshot('poll');},360);
+  tick=setInterval(()=>{if(document.visibilityState==='visible')snapshot('poll');},580);
   persist();render();
  }
  function stop(){
@@ -139,12 +221,12 @@ window.JoaninhaDiagnostic=function({app,getState,version}){
  }
  function exportLog(){
   if(active||!events.length)return;
-  const payload={format:'joaninha-keyboard-diagnostic',schema:1,version,started,
-   exported:new Date().toISOString(),count:events.length,anomalies,overflow,interrupted,
-   privacy:'No text, typed characters, codes, or geolocation',
+  const payload={format:'joaninha-touch-diagnostic',schema:2,version,started,
+   exported:new Date().toISOString(),count:events.length,anomalies,overflow,interrupted,touchStats,
+   privacy:'Coordinates of keyboard taps may reveal typed text, no direct message content is recorded',
    device:{userAgent:navigator.userAgent,language:navigator.language,
     width:screen.width,height:screen.height,dpr:devicePixelRatio},events};
-  const name='Joaninha_Teste_Teclado_'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'_')+'.json';
+  const name='Joaninha_Toques_Completos_'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'_')+'.json';
   const file=new File([JSON.stringify(payload,null,2)+'\n'],name,{type:'application/json'});
   if(navigator.canShare?.({files:[file]})&&navigator.share){
    navigator.share({files:[file],title:'Diagnóstico do teclado'}).catch(err=>{
@@ -159,13 +241,19 @@ window.JoaninhaDiagnostic=function({app,getState,version}){
  exportBtn.addEventListener('click',exportLog);
  try{
   const old=JSON.parse(localStorage.getItem(KEY)||'null');
-  if(old?.format==='joaninha-diag-v3'&&Array.isArray(old.events)&&old.events.length){
+  if(old?.format==='joaninha-touch-diagnostic-v7'&&Array.isArray(old.events)&&old.events.length){
    events=old.events.filter(e=>e&&Number.isFinite(e.ms)&&typeof e.kind==='string').slice(-MAX);
    started=typeof old.started==='string'?old.started:'';
    anomalies=Number(old.anomalies)||0;overflow=Number(old.overflow)||0;interrupted=!!old.active;
+   if(old.touchStats)touchStats={...touchStats,...old.touchStats};
   }
  }catch(err){}
  render();
+ for(const [name,fn] of [
+  ['pointerdown',touchDown],['pointermove',touchMove],
+  ['pointerup',e=>touchFinish(e,false)],['pointercancel',e=>touchFinish(e,true)],
+  ['click',touchClick]
+ ])document.addEventListener(name,fn,{capture:true,passive:true});
  for(const [source,label] of [[window,'window'],[window.visualViewport,'visualViewport']]){
   if(!source)continue;
   for(const name of ['resize','scroll'])
@@ -186,6 +274,6 @@ window.JoaninhaDiagnostic=function({app,getState,version}){
  window.addEventListener('error',e=>event('javascript-error',{
   file:(e.filename||'').split('/').pop(),line:e.lineno||0,column:e.colno||0}));
  window.addEventListener('unhandledrejection',()=>event('unhandled-promise-rejection'));
- return {open,close,event,snapshot,isRecording:()=>active};
+ return {open,close,event,snapshot,isRecording:()=>active,keyAction};
 };
 })();
