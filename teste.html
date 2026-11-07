@@ -46,11 +46,11 @@ svg{display:block}
 #app.drawer-open #drawer{visibility:visible;opacity:1}
 /* Replicate the v10 conversation fades, full viewport height at both ends */
 #drawer::before,#drawer::after{content:"";position:absolute;left:0;right:0;pointer-events:none;z-index:4}
-#drawer::before{top:0;height:132px;background:linear-gradient(to bottom,rgba(0,0,0,.18) 0%,rgba(0,0,0,.12) 18%,rgba(0,0,0,.07) 40%,rgba(0,0,0,.025) 64%,transparent 100%)}
-#drawer::after{bottom:0;height:138px;background:linear-gradient(to bottom,transparent 0%,rgba(0,0,0,.025) 24%,rgba(0,0,0,.07) 45%,rgba(0,0,0,.14) 69%,rgba(0,0,0,.25) 88%,rgba(0,0,0,.35) 100%)}
+#drawer::before{top:0;height:190px;background:linear-gradient(to bottom,rgba(0,0,0,.30) 0%,rgba(0,0,0,.24) 22%,rgba(0,0,0,.16) 46%,rgba(0,0,0,.08) 72%,transparent 100%)}
+#drawer::after{bottom:0;height:194px;background:linear-gradient(to bottom,transparent 0%,rgba(0,0,0,.07) 24%,rgba(0,0,0,.17) 48%,rgba(0,0,0,.30) 73%,rgba(0,0,0,.43) 88%,rgba(0,0,0,.52) 100%)}
 .drawer-inner{position:absolute;inset:0;width:calc(100% - 85px);padding:calc(var(--safe-top) + 64px) 0 calc(var(--safe-bottom) + 118px);overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none;
- -webkit-mask-image:linear-gradient(to bottom,rgba(0,0,0,.22) 0px,rgba(0,0,0,.44) 44px,rgba(0,0,0,.76) 92px,#000 152px,#000 calc(100% - 160px),rgba(0,0,0,.97) calc(100% - 118px),rgba(0,0,0,.78) calc(100% - 73px),rgba(0,0,0,.54) calc(100% - 35px),rgba(0,0,0,.32) 100%);
- mask-image:linear-gradient(to bottom,rgba(0,0,0,.22) 0px,rgba(0,0,0,.44) 44px,rgba(0,0,0,.76) 92px,#000 152px,#000 calc(100% - 160px),rgba(0,0,0,.97) calc(100% - 118px),rgba(0,0,0,.78) calc(100% - 73px),rgba(0,0,0,.54) calc(100% - 35px),rgba(0,0,0,.32) 100%)}
+ -webkit-mask-image:linear-gradient(to bottom,rgba(0,0,0,.15) 0px,rgba(0,0,0,.27) 54px,rgba(0,0,0,.51) 105px,rgba(0,0,0,.81) 158px,#000 212px,#000 calc(100% - 215px),rgba(0,0,0,.96) calc(100% - 170px),rgba(0,0,0,.76) calc(100% - 124px),rgba(0,0,0,.49) calc(100% - 82px),rgba(0,0,0,.24) calc(100% - 38px),rgba(0,0,0,.13) 100%);
+ mask-image:linear-gradient(to bottom,rgba(0,0,0,.15) 0px,rgba(0,0,0,.27) 54px,rgba(0,0,0,.51) 105px,rgba(0,0,0,.81) 158px,#000 212px,#000 calc(100% - 215px),rgba(0,0,0,.96) calc(100% - 170px),rgba(0,0,0,.76) calc(100% - 124px),rgba(0,0,0,.49) calc(100% - 82px),rgba(0,0,0,.24) calc(100% - 38px),rgba(0,0,0,.13) 100%)}
 .drawer-inner::-webkit-scrollbar{display:none}
 .drawer-title-row{position:absolute;z-index:5;top:calc(var(--safe-top) + 8px);left:0;
  width:calc(100% - 85px);display:flex;align-items:center;justify-content:space-between;
@@ -356,7 +356,7 @@ svg{display:block}
  'Jabuti','Cobra','Lagarto','Camaleão','Iguana','Sapo','Rã','Salamandra','Borboleta','Abelha',
  'Formiga','Joaninha','Besouro','Barata','Mosquito','Libélula','Grilo','Gafanhoto','Aranha','Escorpião','Caracol'
  ];
- const GPT_TEST_VERSION=13;
+ const GPT_TEST_VERSION=14;
  let scene='home', keyboard=false, draft='', drawer=false, hub=false, generating=false, timer=null, longTimer=null, wasLong=false;
  let keyboardMode='letters',shiftNext=true,capsLocked=false,caretPos=0;
  // Exact letter-to-digit secret map from Joaninha main v48
