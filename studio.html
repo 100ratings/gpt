@@ -57,7 +57,7 @@ button,input,select{font:inherit}button{cursor:pointer}
 #rangeValue{min-width:35px;font-size:12px;text-align:right;font-variant-numeric:tabular-nums}
 #status{position:absolute;left:50%;top:calc(env(safe-area-inset-top,0px) + 126px);transform:translateX(-50%);background:#333339;color:#fff;border:1px solid #54545a;border-radius:30px;padding:9px 13px;font-size:12px;white-space:nowrap;opacity:0;transition:opacity .18s;z-index:60;pointer-events:none}
 #status.show{opacity:1}
-#stage.clean #tools,#stage.clean #keyboard{display:none!important}
+#stage.clean #tools{display:none!important}
 @media(max-width:380px){#brand{min-width:61px}#brand b{font-size:11px}#save{padding:0 7px}#bar{gap:5px;padding:5px}#inspector{gap:7px}#sceneRow{top:calc(env(safe-area-inset-top,0px) + 69px)}}
 @media(max-height:650px){#inspector{max-height:43vh}#stage.open #inspector{max-height:46vh}#sceneRow .note{display:none}}
 </style>
@@ -190,6 +190,11 @@ function historyApply(s){
 $('undo').addEventListener('click',()=>{if(!history.length)return;future.push(snapshot());historyApply(history.pop());});
 $('redo').addEventListener('click',()=>{if(!future.length)return;history.push(snapshot());historyApply(future.pop());});
 function refreshControls(){
+ const noSystemKeyboard=state.mode==='open';
+ for(const field of [$('x'),$('y')]){
+  field.readOnly=noSystemKeyboard;
+  field.setAttribute('aria-description',noSystemKeyboard?'Use as setas para ajustar sem abrir o teclado real':'Informe o valor desejado');
+ }
  $('closed').classList.toggle('active',state.mode==='closed');
  $('open').classList.toggle('active',state.mode==='open');
  $('closed').setAttribute('aria-pressed',String(state.mode==='closed'));
@@ -222,7 +227,14 @@ function select(key){
  state.selected=key;paint();
 }
 function move(dx,dy,save=true){
- if(special.has(state.selected))return;
+ if(special.has(state.selected)){
+  if(!dy&&!dx)return;
+  if(save)remember();
+  const key=state.selected,r=rangeSettings[key],step=(dy!==0?-dy:dx);
+  profile()[key]=Math.max(r[0],Math.min(r[1],profile()[key]+step));
+  paint();
+  return;
+ }
  if(save)remember();
  const key=state.selected,p=pos(key);
  profile().positions[key]={x:Math.max(-400,Math.min(400,p.x+dx)),y:Math.max(-650,Math.min(650,p.y+dy))};
@@ -237,7 +249,9 @@ function coordSet(which,input){
  paint();
 }
 $('x').addEventListener('change',()=>coordSet('x',$('x')));
+$('x').addEventListener('click',()=>{if(state.mode==='open')toast('Para ajustar, arraste ou use o direcional');});
 $('y').addEventListener('change',()=>coordSet('y',$('y')));
+$('y').addEventListener('click',()=>{if(state.mode==='open')toast('Para ajustar, arraste ou use o direcional');});
 for(const btn of document.querySelectorAll('[data-dir]')){
  const direction=btn.dataset.dir;
  const step=()=>Number($('step').value)||1;
@@ -319,7 +333,8 @@ function applyScene(force){
  }else makeDemo();
 }
 function virtualKeyboardHeight(){
- return Math.max(290,Math.min(425,Math.round(window.innerHeight*.417)));
+ const fullHeight=Math.max(screen.height||0,window.innerHeight);
+ return Math.max(290,Math.min(425,Math.round(fullHeight*(386/926))));
 }
 function insertFrameStyles(){
  const style=doc.createElement('style');
