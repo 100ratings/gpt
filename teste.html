@@ -44,7 +44,7 @@ svg{display:block}
 .fake-battery{background:#fff;color:#000;font-size:10px;border-radius:5px;padding:0 5px;line-height:15px}
 #drawer{position:absolute;inset:0;z-index:2;background:#000;visibility:hidden;opacity:0;transition:opacity .22s ease,visibility .22s ease;overflow:hidden}
 #app.drawer-open #drawer{visibility:visible;opacity:1}
-.drawer-inner{position:absolute;inset:0;width:calc(100% - 85px);padding:calc(var(--safe-top) + 8px) 0 calc(var(--safe-bottom) + 16px);overflow-y:auto;scrollbar-width:none}
+.drawer-inner{position:absolute;inset:0;width:calc(100% - 85px);padding:calc(var(--safe-top) + 8px) 0 calc(var(--safe-bottom) + 118px);overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .drawer-inner::-webkit-scrollbar{display:none}
 .drawer-title-row{display:flex;align-items:center;justify-content:space-between;padding:0 18px 14px 31px}
 .drawer-title{font-size:22px;font-weight:720;letter-spacing:-.55px}
@@ -57,7 +57,9 @@ svg{display:block}
 .drawer-project{display:flex;align-items:center;gap:14px;padding:0 30px;height:46px;font-size:16.5px}
 .drawer-project svg{width:21px;height:21px;flex:none}
 .drawer-recent{height:42px;display:block;width:100%;text-align:left;padding:0 30px;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:0;background:transparent}
-.drawer-actions{position:sticky;bottom:0;display:flex;align-items:center;justify-content:space-between;width:100%;padding:16px 19px 2px 30px;background:linear-gradient(to top,#000 65%,rgba(0,0,0,0))}
+.drawer-actions{position:absolute;z-index:5;bottom:calc(var(--safe-bottom) + 10px);left:0;width:calc(100% - 85px);display:flex;align-items:center;justify-content:space-between;padding:12px 19px 6px 30px;pointer-events:none;background:linear-gradient(to top,rgba(0,0,0,.56),rgba(0,0,0,.23) 52%,transparent 100%)}
+.drawer-actions>*{pointer-events:auto}
+@media(max-width:370px){.drawer-actions{width:calc(100% - 65px)}}
 .newchat-blue{display:flex;align-items:center;gap:12px;padding:11px 17px;border:1px solid rgba(255,255,255,.2);border-radius:26px;background:var(--blue);font-size:17px;font-weight:680;box-shadow:inset 0 1px rgba(255,255,255,.12)}
 .drawer-avatar{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:#8d51b2;border:7px solid #1b1b1c;font-size:12px;box-sizing:content-box}
 #page{position:absolute;inset:0;background:#000;overflow:hidden;z-index:3;transform:none;transform-origin:left center;transition:transform .38s cubic-bezier(.22,.78,.22,1),border-radius .38s;will-change:transform}
@@ -242,8 +244,8 @@ svg{display:block}
    <button class="drawer-recent">Psycho Calc Meaning</button>
    <button class="drawer-recent">Tradução para inglês</button>
    <button class="drawer-recent">Privacidade grátis no Instagram</button>
-   <div class="drawer-actions"><button class="newchat-blue" id="drawerNew"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linejoin="round"><path d="M12 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-8M12 13l8-9m0 0h-6m6 0v6"/></svg>Chat</button><span class="drawer-avatar">MA</span></div>
   </div>
+  <div class="drawer-actions"><button class="newchat-blue" id="drawerNew"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linejoin="round"><path d="M12 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-8M12 13l8-9m0 0h-6m6 0v6"/></svg>Chat</button><span class="drawer-avatar">MA</span></div>
  </aside>
  <main id="page">
   <header id="header">
@@ -344,7 +346,7 @@ svg{display:block}
  'Jabuti','Cobra','Lagarto','Camaleão','Iguana','Sapo','Rã','Salamandra','Borboleta','Abelha',
  'Formiga','Joaninha','Besouro','Barata','Mosquito','Libélula','Grilo','Gafanhoto','Aranha','Escorpião','Caracol'
  ];
- const GPT_TEST_VERSION=10;
+ const GPT_TEST_VERSION=11;
  let scene='home', keyboard=false, draft='', drawer=false, hub=false, generating=false, timer=null, longTimer=null, wasLong=false;
  let keyboardMode='letters',shiftNext=true,capsLocked=false,caretPos=0;
  // Exact letter-to-digit secret map from Joaninha main v48
@@ -929,9 +931,23 @@ svg{display:block}
   if(document.visibilityState==='visible')checkForTestUpdate();
  });
  // Opening the sidebar with a left-edge swipe is intentionally disabled
- let touchX=0;
- $('drawer').addEventListener('touchstart',e=>{if(e.touches.length===1)touchX=e.touches[0].clientX;},{passive:true});
- $('drawer').addEventListener('touchend',e=>{if(e.changedTouches.length===1&&e.changedTouches[0].clientX-touchX < -65)setDrawer(false);},{passive:true});
+ // Vertical drawer scrolling must not accidentally dismiss the menu at its ends
+ let drawerSwipe=null;
+ $('drawer').addEventListener('touchstart',e=>{
+  if(e.touches.length!==1){drawerSwipe=null;return;}
+  drawerSwipe={x:e.touches[0].clientX,y:e.touches[0].clientY};
+ },{passive:true});
+ $('drawer').addEventListener('touchcancel',()=>{drawerSwipe=null;},{passive:true});
+ $('drawer').addEventListener('touchend',e=>{
+  if(!drawerSwipe||e.changedTouches.length!==1){drawerSwipe=null;return;}
+  const dx=e.changedTouches[0].clientX-drawerSwipe.x;
+  const dy=e.changedTouches[0].clientY-drawerSwipe.y;
+  drawerSwipe=null;
+  if(dx < -105 && Math.abs(dy)<40 && Math.abs(dx)>Math.abs(dy)*2.5){
+   diag.event('drawer-intentional-horizontal-dismiss',{direction:'left'});
+   setDrawer(false);
+  }
+ },{passive:true});
  page.addEventListener('click',e=>{
   if(drawer && !e.target.closest('#header'))setDrawer(false);
  });
