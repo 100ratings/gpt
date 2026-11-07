@@ -7,11 +7,11 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ChatGPT">
-<link rel="manifest" href="manifest.webmanifest?v=38">
-<link rel="apple-touch-icon" href="icon-192.png?v=38">
+<link rel="manifest" href="manifest.webmanifest?v=39">
+<link rel="apple-touch-icon" href="icon-192.png?v=39">
 <title>ChatGPT</title>
 <style>
-:root{color-scheme:dark;--bg:#000;--fg:#f5f5f5;--muted:#9b9b9d;--surface:#222224;--surface2:#2d2d30;--outline:#38383b;--header-h:60px;--app-height:100dvh}
+:root{color-scheme:dark;--bg:#000;--fg:#f5f5f5;--muted:#9b9b9d;--surface:#222224;--surface2:#2d2d30;--outline:#38383b;--header-h:60px;--app-height:100dvh;--app-full-height:100dvh}
 *{box-sizing:border-box}
 html,body{height:100%;width:100%;margin:0;background:var(--bg);overscroll-behavior:none;overflow:hidden}
 body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;font-size:16px;color:var(--fg);-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
@@ -34,6 +34,18 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
 /* Anchor the whole app to the visual (keyboard-unobscured) viewport.
    iOS Safari can scroll the visual viewport inside the layout viewport on focus. */
 .app{width:var(--viewport-width,100%);height:var(--app-height);min-height:0;top:var(--viewport-top,0px);left:var(--viewport-left,0px);background:var(--bg);overflow:hidden;position:fixed;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+/* v39: iOS standalone portrait uses full screen height instead of WebKit's
+   shorter reported viewport. Absolute positioning avoids fixed-layer clipping.
+   Keep the visualViewport-based layout for keyboard interactions. */
+html.full-screen-standalone,
+html.full-screen-standalone body{height:var(--app-full-height,100%)}
+html.full-screen-standalone body{position:relative}
+html.full-screen-standalone .app{
+ position:absolute;
+ top:0;left:0;
+ height:var(--app-full-height,100dvh);
+ padding-bottom:0;
+}
 .app.keyboard-open{padding-bottom:0}
 .app-header{height:var(--header-h);min-height:var(--header-h);padding:8px 17px 6px;display:grid;grid-template-columns:42px 1fr 42px;align-items:center;position:relative;z-index:3;background:transparent}
 .header-icon{width:40px;height:40px;display:grid;place-items:center;border-radius:40px}
@@ -432,7 +444,7 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
   </header>
   <main class="conversation" id="conversation" aria-label="Conversa">
     <section class="welcome" id="welcome">
-      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=38" alt="" aria-hidden="true">
+      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=39" alt="" aria-hidden="true">
       <h1 class="welcome-title" data-edit-key="welcome-title">Como posso ajudar?</h1>
     </section>
     <section class="messages" id="messages" aria-live="off"></section>
@@ -907,7 +919,7 @@ function parseRequest(question){
 }
 async function fetchListFile(category){
  if(!category||!/^[a-z0-9]+$/.test(category))throw Error('categoria invalida');
- const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=38&ts='+Date.now(),{cache:'no-store'});
+ const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=39&ts='+Date.now(),{cache:'no-store'});
  if(!response.ok)throw Error('lista nao disponivel');
  const raw=await response.text();
  return raw.replace(/^\uFEFF/,'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -1861,7 +1873,7 @@ function makeLayoutBackup(){
  return {
   format:LAYOUT_BACKUP_FORMAT,
   schemaVersion:LAYOUT_BACKUP_SCHEMA,
-  appVersion:38,
+  appVersion:39,
   exportedAt:new Date().toISOString(),
   settings:cloneProfiles(editing?draftOffsets:savedOffsets)
  };
@@ -2026,6 +2038,21 @@ function resizeToViewport(){
  if(h>baselineHeight)baselineHeight=h;
  const open=h < baselineHeight-130;
  keyboardIsOpen=open;
+
+ // v39: use the Cinema web app's full screen-height workaround only when
+ // installed on an iPhone/iPad in portrait and the keyboard is closed.
+ // During typing, retain the current visualViewport-based layout.
+ const ios=/iphone|ipad|ipod/i.test(navigator.userAgent)
+   || (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+ const standalone=window.matchMedia('(display-mode: standalone)').matches
+   || navigator.standalone===true;
+ const portrait=screen.height>screen.width && window.innerWidth<window.innerHeight;
+ const fullScreen=ios&&standalone&&portrait&&!open&&document.activeElement!==prompt;
+ const fullHeight=Math.max(Math.round(screen.height),Math.round(window.innerHeight),h);
+ document.documentElement.style.setProperty('--app-full-height',fullHeight+'px');
+ document.documentElement.classList.toggle('full-screen-standalone',fullScreen);
+ if(fullScreen&&window.scrollY>0)window.scrollTo(0,0);
+
  document.documentElement.style.setProperty('--app-height',h+'px');
  document.documentElement.style.setProperty('--viewport-width',w+'px');
  document.documentElement.style.setProperty('--viewport-top',top+'px');
@@ -2060,7 +2087,7 @@ refreshComposerMeasure();
 // v21: atualização discreta no PRIMEIRO item das conversas recentes.
 // Nenhum redirecionamento automático, nem durante o force nem numa conversa aberta.
 // A consulta bypassa cache HTTP e volta a ser feita a cada abertura do menu.
-const GPT_FORCE_VERSION=38;
+const GPT_FORCE_VERSION=39;
 const DEFAULT_RECENT_TITLE='Quando usar por que e porque';
 let latestAvailableVersion=null;
 let updateCheckSequence=0;
