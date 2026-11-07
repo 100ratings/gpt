@@ -135,6 +135,13 @@ svg{display:block}
 #text-field .field-value{white-space:pre;overflow:hidden;text-overflow:ellipsis;min-width:0}
 #text-field .blue-caret{display:none;flex:none;background:#4681fa;width:2px;height:22px;margin-left:2px;opacity:1;animation:cursorBlinkV4 1.06s linear infinite;-webkit-animation:cursorBlinkV4 1.06s linear infinite}
 #app.keyboard-on #text-field .blue-caret{display:inline-block}
+#secretHotspot{position:absolute;right:79px;bottom:3px;width:70px;height:calc(100% - 6px);
+ z-index:4;opacity:0;border:0!important;border-radius:0;padding:0;background:transparent!important;
+ touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+#app.keyboard-on #secretHotspot{height:42px;bottom:3px}
+#secretPeek{display:none;position:absolute;z-index:28;right:19px;top:101px;pointer-events:none;
+ color:#c9c9d0;font-size:17px;font-weight:550;line-height:1.2;letter-spacing:.5px;font-variant-numeric:tabular-nums}
+#secretPeek.visible{display:block}
 #mic{width:31px;height:40px}
 #mic svg{width:25px;height:25px}
 #sendVoice{border-radius:50%!important;width:34px;height:34px;background:var(--blue)!important;color:#fff}
@@ -279,6 +286,7 @@ svg{display:block}
    <button id="add" aria-label="Adicionar"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M12 2v20M2 12h20"/></svg></button>
    <div id="text-field" role="button" tabindex="0" aria-label="Toque para mostrar teclado simulado">Perguntar ao ChatGPT</div>
    <span id="typingMeter" aria-hidden="true"></span>
+   <button id="secretHotspot" type="button" tabindex="-1" aria-hidden="true"></button>
    <button id="mic" aria-label="Microfone"><svg viewBox="0 0 24 24" fill="none" stroke="#f8f8fa" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v4m-4 0h8"/></svg></button>
    <button id="sendVoice" aria-label="Enviar ou voz"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
     <g id="voicePath"><path d="M3 10v4m4-7v10m5-14v18m5-14v10m4-7v4"/></g>
@@ -286,6 +294,7 @@ svg{display:block}
     <g id="sendPath"><path d="M12 19V5m0 0-6 6m6-6 6 6"/></g>
    </svg></button>
   </div>
+  <span id="secretPeek" aria-hidden="true"></span>
   <section id="keyboard" aria-label="Teclado visual do iOS 26, não é o teclado real">
    <div class="kb-row" id="kbTop"></div>
    <div class="kb-row" id="kbMiddle"></div>
@@ -335,14 +344,17 @@ svg{display:block}
  'Jabuti','Cobra','Lagarto','Camaleão','Iguana','Sapo','Rã','Salamandra','Borboleta','Abelha',
  'Formiga','Joaninha','Besouro','Barata','Mosquito','Libélula','Grilo','Gafanhoto','Aranha','Escorpião','Caracol'
  ];
- const GPT_TEST_VERSION=8;
+ const GPT_TEST_VERSION=9;
  let scene='home', keyboard=false, draft='', drawer=false, hub=false, generating=false, timer=null, longTimer=null, wasLong=false;
  let keyboardMode='letters',shiftNext=true,capsLocked=false,caretPos=0;
+ // Exact letter-to-digit secret map from Joaninha main v48
+ const SECRET_KEY_VALUES=Object.freeze({i:1,o:2,p:3,j:4,k:5,l:6,b:7,n:8,m:9});
+ let secretMode=false,secretDigits=[],secretPeekTimer=null,lastSecretPosition=null;
  const isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
  const standalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
  const diag=window.JoaninhaDiagnostic({app,version:GPT_TEST_VERSION,
   getState:()=>({scene,keyboard,keyboardMode,drawer,hub,
-   draftLength:draft.length,caretPos,shiftNext,capsLocked,standalone,generating})
+   draftLength:draft.length,caretPos,shiftNext,capsLocked,secretMode,secretCount:secretDigits.length,standalone,generating})
  });
  if(!isIOS)app.classList.add('desktop-preview');
  function applyViewport(){
@@ -414,17 +426,67 @@ svg{display:block}
  field.replaceChildren(inputLine);
  function updateComposer(){
   const ongoing=scene==='thinking'||scene==='list';
-  const hasDraft=!!draft.trim()&&!ongoing;
+  const hasDraft=!!draft.trim()&&!ongoing&&(!secretMode||secretDigits.length===2);
   composer.classList.toggle('has-draft',hasDraft);
   field.classList.toggle('has-text',!!draft);
   caretPos=Math.max(0,Math.min(draft.length,caretPos));
   beforeSpan.textContent=draft.slice(0,caretPos);
   afterSpan.textContent=draft.slice(caretPos);
+  placeholder.textContent=secretMode?'Perguntar ao ChatGPT.':'Perguntar ao ChatGPT';
   placeholder.hidden=!!draft;
   const newLines=Math.min(4,Math.max(1,draft.split('\n').length));
   composer.style.setProperty('--input-extra',String((newLines-1)*22)+'px');
   sendVoice.setAttribute('aria-label',ongoing?'Parar resposta':hasDraft?'Enviar mensagem':'Conversar por voz');
  }
+ // Secret input never exposes the original keystrokes in the visible message
+ const secretPeek=$('secretPeek');
+ function secretDigit(key){
+  const letter=key.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  return SECRET_KEY_VALUES[letter]??0;
+ }
+ function forcedSecretPosition(){
+  if(secretDigits.length!==2)return null;
+  return (secretDigits[0]*10+secretDigits[1])||100;
+ }
+ function clearSecretPeek(){
+  if(secretPeekTimer!==null){clearTimeout(secretPeekTimer);secretPeekTimer=null;}
+  secretPeek.classList.remove('visible');secretPeek.textContent='';
+ }
+ function showSecretPeek(){
+  clearSecretPeek();
+  const position=forcedSecretPosition();if(position===null)return;
+  secretPeek.textContent=String(position);
+  secretPeek.classList.add('visible');
+  diag.event('secret-peek-show',{durationMs:4000});
+  secretPeekTimer=setTimeout(()=>{
+   secretPeek.classList.remove('visible');secretPeek.textContent='';
+   secretPeekTimer=null;diag.event('secret-peek-hide');
+  },4000);
+ }
+ function setSecretMode(enabled){
+  if(enabled&&draft.length)return false;
+  secretMode=!!enabled;secretDigits=[];clearSecretPeek();
+  updateComposer();diag.event(secretMode?'secret-armed':'secret-disarmed');
+  return true;
+ }
+ function activateSecretHotspot(){
+  if(draft||generating||scene==='thinking'||scene==='list')return;
+  setSecretMode(true);
+  setKeyboard(true,'secret-hotspot');
+ }
+ const secretHotspot=$('secretHotspot');
+ let lastHotspotDown=-Infinity;
+ secretHotspot.addEventListener('pointerdown',e=>{
+  if(e.pointerType!=='touch'&&e.pointerType!=='pen')return;
+  e.preventDefault();e.stopPropagation();
+  lastHotspotDown=performance.now();
+  activateSecretHotspot();
+ });
+ secretHotspot.addEventListener('click',e=>{
+  e.preventDefault();e.stopPropagation();
+  if(performance.now()-lastHotspotDown<750)return;
+  activateSecretHotspot();
+ });
  function showScene(next,options){
   if(!['home','thinking','list','end'].includes(next))return;
   diag.event('scene-change',{from:scene,to:next});
@@ -432,7 +494,7 @@ svg{display:block}
   app.classList.remove('scene-home','scene-thinking','scene-list','scene-end');
   app.classList.add('scene-'+next);
   // State transitions must never dismiss an already-open mock keyboard
-  if(next==='home'){draft='';caretPos=0;capsLocked=false;shiftNext=true;refreshLetterLabels();}
+  if(next==='home'){draft='';caretPos=0;capsLocked=false;shiftNext=true;setSecretMode(false);refreshLetterLabels();}
   updateComposer();
   requestAnimationFrame(()=>{
    if(next==='end'){scroller.scrollTop=scroller.scrollHeight;}
@@ -454,9 +516,11 @@ svg{display:block}
  }
  function sendDraft(){
   if(scene==='thinking'||scene==='list'){showScene('end');return;}
+  if(secretMode&&secretDigits.length!==2)return;
   if(!draft.trim()){setKeyboard(true);return;}
+  lastSecretPosition=secretMode?forcedSecretPosition():null;
   $('bubble-row').querySelector('.bubble').textContent=draft.trim();
-  draft='';caretPos=0;capsLocked=false;shiftNext=true;refreshLetterLabels();
+  draft='';caretPos=0;capsLocked=false;shiftNext=true;setSecretMode(false);refreshLetterLabels();
   startDemo();
  }
  $('top-menu').addEventListener('pointerdown',()=>{
@@ -616,6 +680,10 @@ svg{display:block}
    draft=draft.slice(0,back)+draft.slice(caretPos);
    caretPos=back;
   }
+  if(secretMode&&draft.length<secretDigits.length){
+   secretDigits.length=Math.max(0,draft.length);
+   clearSecretPeek();diag.event('secret-code-corrected',{count:secretDigits.length});
+  }
   if(!draft){shiftNext=true;capsLocked=false;lastShiftAt=-Infinity;}
  }
  function hideAccents(){accentsPopup.classList.remove('visible');accentsPopup.replaceChildren();accentPosition=null;}
@@ -628,6 +696,7 @@ svg{display:block}
   hideAccents();
  }
  function showAccents(key,button){
+  if(secretMode&&secretDigits.length<=2)return;
   const variants=accents[key];if(!variants||keyboardMode!=='letters')return;
   hideAccents();accentPosition=caretPos-1;
   const rect=button.getBoundingClientRect(),r=page.getBoundingClientRect();
@@ -648,7 +717,11 @@ svg{display:block}
  function commitKeyboardKey(key,meta={}){
   const t=performance.now(),before=draft.length,oldCaret=caretPos;
   let kind='character',action='insert';
-  if(['123','ABC','#+=','☺'].includes(key)){
+  const secretLetter=secretMode&&secretDigits.length<2&&keyboardMode==='letters'&&/^[A-Z]$/.test(key);
+  const secretPending=secretMode&&secretDigits.length<2;
+  if(secretPending&&!secretLetter&&!['123','ABC','#+=','☺','⇧','⌫'].includes(key)){
+   kind='secret';action='waiting-for-code-letter';
+  }else if(['123','ABC','#+=','☺'].includes(key)){
    kind='layout';action='switch-layout';
    keyboardMode=key==='123'?'numbers':key==='ABC'?'letters':
     key==='#+='?'symbols':keyboardMode==='emoji'?'letters':'emoji';
@@ -680,8 +753,16 @@ svg{display:block}
    }
    updateComposer();
   }else{
-   const value=keyboardMode==='letters'?(shiftNext?key:key.toLowerCase()):key;
-   insertText(value);
+   if(secretLetter){
+    secretDigits.push(secretDigit(key));
+    insertText(secretDigits.length===1?'L':'i');
+    kind='secret';action=secretDigits.length===1?'first-code-letter':'second-code-letter';
+    if(secretDigits.length===2)showSecretPeek();
+    diag.event('secret-code-progress',{count:secretDigits.length});
+   }else{
+    const value=keyboardMode==='letters'?(shiftNext?key:key.toLowerCase()):key;
+    insertText(value);
+   }
    if(keyboardMode==='letters'&&shiftNext&&!capsLocked){shiftNext=false;refreshLetterLabels();}
    updateComposer();
   }
