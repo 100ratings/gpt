@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ChatGPT">
-<link rel="manifest" href="manifest.webmanifest?v=44">
-<link rel="apple-touch-icon" href="icon-192.png?v=44">
+<link rel="manifest" href="manifest.webmanifest?v=45">
+<link rel="apple-touch-icon" href="icon-192.png?v=45">
 <title>ChatGPT</title>
 <style>
 :root{color-scheme:dark;--bg:#000;--fg:#f5f5f5;--muted:#9b9b9d;--surface:#222224;--surface2:#2d2d30;--outline:#38383b;--header-h:60px;--app-height:100dvh;--app-full-height:100dvh}
@@ -207,6 +207,7 @@ html.full-screen-standalone .app.keyboard-open{
 .edit-backup-buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .edit-backup-buttons button{border:1px solid #66666b;background:#363639;min-height:42px;padding:9px 7px;border-radius:10px;font-size:13px;font-weight:570}
 .edit-backup-buttons button:active{background:#555559}
+.edit-backup-buttons button:disabled{opacity:.4;cursor:default}
 .edit-backup-status{color:#a5a5aa;font-size:11px;line-height:1.4;margin:0}
 .edit-backup-status.highlight{color:#e8d7ab}
 
@@ -433,7 +434,7 @@ html.full-screen-standalone .app.keyboard-open{
   </header>
   <main class="conversation" id="conversation" aria-label="Conversa">
     <section class="welcome" id="welcome">
-      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=44" alt="" aria-hidden="true">
+      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=45" alt="" aria-hidden="true">
       <h1 class="welcome-title" data-edit-key="welcome-title">Como posso ajudar?</h1>
     </section>
     <section class="messages" id="messages" aria-live="off"></section>
@@ -546,6 +547,17 @@ html.full-screen-standalone .app.keyboard-open{
       </div>
       <p class="edit-backup-status" id="editBackupStatus" aria-live="polite">Exportar cria um backup, importar permite conferir antes de salvar</p>
       <input type="file" accept=".json,application/json" id="editImportFile" hidden aria-label="Selecionar arquivo de configurações">
+    </div>
+    <div class="edit-backup" id="keyboardDiagnostic">
+      <div class="edit-backup-title">Diagnóstico do teclado</div>
+      <p class="edit-backup-status">Mede posições e eventos, sem gravar mensagens nem códigos secretos</p>
+      <div class="edit-backup-buttons">
+        <button type="button" id="diagStart">Iniciar captura</button>
+        <button type="button" id="diagMark" disabled>Marcar falha</button>
+        <button type="button" id="diagExport" disabled>Exportar log</button>
+        <button type="button" id="diagStop" disabled>Parar captura</button>
+      </div>
+      <p class="edit-backup-status" id="diagStatus" role="status" aria-live="polite">Inicie, feche o painel, reproduza o problema e volte para exportar</p>
     </div>
   </div>
   <div class="reset-confirm" id="resetConfirm" role="dialog" aria-modal="true" aria-labelledby="resetTitle" hidden>
@@ -944,7 +956,7 @@ function parseRequest(question){
 }
 async function fetchListFile(category){
  if(!category||!/^[a-z0-9]+$/.test(category))throw Error('categoria invalida');
- const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=44&ts='+Date.now(),{cache:'no-store'});
+ const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=45&ts='+Date.now(),{cache:'no-store'});
  if(!response.ok)throw Error('lista nao disponivel');
  const raw=await response.text();
  return raw.replace(/^\uFEFF/,'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -1898,7 +1910,7 @@ function makeLayoutBackup(){
  return {
   format:LAYOUT_BACKUP_FORMAT,
   schemaVersion:LAYOUT_BACKUP_SCHEMA,
-  appVersion:44,
+  appVersion:45,
   exportedAt:new Date().toISOString(),
   settings:cloneProfiles(editing?draftOffsets:savedOffsets)
  };
@@ -2162,7 +2174,7 @@ refreshComposerMeasure();
 // v21: atualização discreta no PRIMEIRO item das conversas recentes.
 // Nenhum redirecionamento automático, nem durante o force nem numa conversa aberta.
 // A consulta bypassa cache HTTP e volta a ser feita a cada abertura do menu.
-const GPT_FORCE_VERSION=44;
+const GPT_FORCE_VERSION=45;
 const DEFAULT_RECENT_TITLE='Quando usar por que e porque';
 let latestAvailableVersion=null;
 let updateCheckSequence=0;
@@ -2211,6 +2223,149 @@ async function applyAvailableUpdate(){
   showToast('Atualização ainda indisponível, tente novamente');
  }
 }
+
+// v45: user-initiated keyboard geometry diagnosis, strictly local until exported.
+// Never read textarea content, forced positions or message/list contents.
+const diagStartButton=document.getElementById('diagStart');
+const diagMarkButton=document.getElementById('diagMark');
+const diagExportButton=document.getElementById('diagExport');
+const diagStopButton=document.getElementById('diagStop');
+const diagStatus=document.getElementById('diagStatus');
+let diagRecording=false,diagEntries=[],diagStarted='',diagT0=0,diagTimer=null,diagFrame=0,diagLastStatus=0;
+const DIAG_LIMIT=1500;
+function diagTime(){return Math.round(performance.now()-diagT0);}
+function diagAdd(data){
+ if(!diagRecording)return;
+ diagEntries.push({ms:diagTime(),...data});
+ if(diagEntries.length>DIAG_LIMIT)diagEntries.splice(0,diagEntries.length-DIAG_LIMIT);
+ if(performance.now()-diagLastStatus>1000){
+  diagLastStatus=performance.now();
+  diagStatus.textContent='Capturando: '+diagEntries.length+' registros, marque a falha se acontecer';
+ }
+}
+function diagRect(node){
+ if(!node)return null;
+ const r=node.getBoundingClientRect(),n=v=>Number.isFinite(v)?Math.round(v*10)/10:null;
+ return {x:n(r.x),y:n(r.y),top:n(r.top),bottom:n(r.bottom),height:n(r.height),width:n(r.width)};
+}
+function diagSample(reason){
+ if(!diagRecording)return;
+ const root=document.documentElement,vv=window.visualViewport;
+ const appCSS=getComputedStyle(app),composerCSS=getComputedStyle(composerRegion);
+ const n=v=>Number.isFinite(v)?Math.round(v*100)/100:null;
+ const nodes={html:diagRect(root),body:diagRect(document.body),app:diagRect(app),
+  header:diagRect(app.querySelector('.app-header')),conversation:diagRect(scroller),
+  composer:diagRect(composerRegion),input:diagRect(prompt)};
+ const flags={
+  standalone:window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true,
+  fullScreen:root.classList.contains('full-screen-standalone'),
+  keyboardClass:app.classList.contains('keyboard-open'),
+  keyboardIsOpen,hasMessages:app.classList.contains('has-messages'),
+  editing,preLiftPending,lastStableKeyboardCover,baselineHeight,
+  promptFocused:document.activeElement===prompt
+ };
+ const cssVar=k=>root.style.getPropertyValue(k).trim();
+ diagAdd({kind:'sample',reason,
+  window:{innerWidth:window.innerWidth,innerHeight:window.innerHeight,outerHeight:window.outerHeight,
+   scrollX:n(window.scrollX),scrollY:n(window.scrollY),devicePixelRatio:window.devicePixelRatio,
+   documentClientHeight:root.clientHeight,documentScrollTop:n(root.scrollTop)},
+  screen:{width:screen.width,height:screen.height,orientationAngle:screen.orientation?.angle??null},
+  visualViewport:vv?{width:n(vv.width),height:n(vv.height),offsetTop:n(vv.offsetTop),offsetLeft:n(vv.offsetLeft),
+   pageTop:n(vv.pageTop),pageLeft:n(vv.pageLeft),scale:n(vv.scale)}:null,
+  flags,css:{appPosition:appCSS.position,appTop:appCSS.top,appHeight:appCSS.height,
+   appPaddingTop:appCSS.paddingTop,appPaddingBottom:appCSS.paddingBottom,appTransform:appCSS.transform,
+   composerBottom:composerCSS.bottom,composerTransform:composerCSS.transform,
+   appHeightVar:cssVar('--app-height'),appFullHeightVar:cssVar('--app-full-height'),
+   keyboardCoverVar:cssVar('--keyboard-cover'),viewportTopVar:cssVar('--viewport-top'),
+   viewportLeftVar:cssVar('--viewport-left'),
+   composerBottomOffset:getComputedStyle(app).getPropertyValue('--composer-bottom-offset').trim()},
+  rects:nodes,
+  delta:{headerMinusApp:n(nodes.header?.top-nodes.app?.top),
+   headerMinusVisualTop:n(nodes.header?.top-(vv?.offsetTop||0)),
+   composerMinusVisualBottom:n(nodes.composer?.bottom-((vv?.offsetTop||0)+(vv?.height||window.innerHeight)))}
+ });
+}
+function diagEvent(name){
+ if(!diagRecording)return;
+ const vv=window.visualViewport;
+ diagAdd({kind:'event',name,scrollY:Math.round(window.scrollY),
+  visibleHeight:vv?Math.round(vv.height):null,
+  viewportPageTop:vv?Math.round(vv.pageTop):null,
+  viewportOffsetTop:vv?Math.round(vv.offsetTop):null});
+ if(!diagFrame)diagFrame=requestAnimationFrame(()=>{
+  diagFrame=0;diagSample('after '+name);
+ });
+}
+function diagControls(){
+ diagStartButton.textContent=diagRecording?'Reiniciar captura':'Iniciar captura';
+ diagMarkButton.disabled=!diagRecording;
+ diagStopButton.disabled=!diagRecording;
+ diagExportButton.disabled=diagEntries.length===0;
+}
+function diagStop(){
+ if(!diagRecording)return;
+ diagSample('stop');diagRecording=false;
+ if(diagTimer!==null){clearInterval(diagTimer);diagTimer=null;}
+ if(diagFrame){cancelAnimationFrame(diagFrame);diagFrame=0;}
+ diagControls();diagStatus.textContent='Captura parada, '+diagEntries.length+' registros disponíveis';
+}
+diagStartButton.addEventListener('click',()=>{
+ if(diagTimer!==null)clearInterval(diagTimer);
+ if(diagFrame){cancelAnimationFrame(diagFrame);diagFrame=0;}
+ diagEntries=[];diagStarted=new Date().toISOString();diagT0=performance.now();
+ diagLastStatus=performance.now();diagRecording=true;
+ diagSample('start');
+ diagTimer=setInterval(()=>{if(document.visibilityState==='visible')diagSample('poll');},150);
+ diagControls();
+ diagStatus.textContent='Capturando, feche o painel e abra e feche o teclado';
+});
+diagStopButton.addEventListener('click',diagStop);
+diagMarkButton.addEventListener('click',()=>{
+ if(!diagRecording)return;
+ diagAdd({kind:'mark',name:'FALHA_OBSERVADA'});
+ diagSample('manual mark');
+ diagStatus.textContent='Falha marcada, exporte o log quando quiser';
+});
+diagExportButton.addEventListener('click',()=>{
+ if(!diagEntries.length)return;
+ if(diagRecording)diagSample('export');
+ const exported=new Date().toISOString();
+ const payload={format:'joaninha-keyboard-log',schemaVersion:1,appVersion:45,
+  startedAt:diagStarted,exportedAt:exported,
+  privacy:'Somente eventos e medidas de tela, sem conteúdo digitado nem códigos secretos',
+  device:{userAgent:navigator.userAgent,language:navigator.language,
+   screenWidth:screen.width,screenHeight:screen.height,devicePixelRatio:window.devicePixelRatio},
+  count:diagEntries.length,recording:diagRecording,events:diagEntries};
+ const name='Joaninha_Teclado_'+exported.slice(0,19).replace(/[:T]/g,'_')+'.json';
+ const file=new File([JSON.stringify(payload,null,2)+'\n'],name,{type:'application/json'});
+ diagStatus.textContent='Log pronto, compartilhe o arquivo JSON nesta conversa';
+ if(typeof navigator.share==='function'&&typeof navigator.canShare==='function'&&navigator.canShare({files:[file]})){
+  navigator.share({files:[file],title:'Diagnóstico do teclado'}).catch(err=>{
+   if(err?.name!=='AbortError')downloadLayoutBackup(file);
+  });
+ }else downloadLayoutBackup(file);
+});
+// Non-invasive listeners, no keylogging and no network transmission.
+for(const [node,prefix,events] of [
+ [prompt,'input',['pointerdown','focus','blur']],
+ [composerRegion,'composer',['pointerdown']],
+ [window,'window',['resize','scroll','orientationchange']]
+]){
+ for(const type of events)node.addEventListener(type,()=>diagEvent(prefix+':'+type),{capture:true,passive:true});
+}
+if(window.visualViewport){
+ window.visualViewport.addEventListener('resize',()=>diagEvent('vv:resize'),{passive:true});
+ window.visualViewport.addEventListener('scroll',()=>diagEvent('vv:scroll'),{passive:true});
+}
+document.addEventListener('visibilitychange',()=>diagEvent('visibilitychange'));
+window.addEventListener('error',e=>{
+ if(diagRecording)diagAdd({kind:'runtime',name:'error',line:e.lineno||null,column:e.colno||null});
+});
+window.addEventListener('unhandledrejection',()=>{
+ if(diagRecording)diagAdd({kind:'runtime',name:'unhandledrejection'});
+});
+diagControls();
+
 window.addEventListener('pageshow',()=>checkForUpdatedVersion());
 document.addEventListener('visibilitychange',()=>{
  if(document.visibilityState==='visible')checkForUpdatedVersion();
