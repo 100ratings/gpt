@@ -132,7 +132,7 @@ svg{display:block}
 #text-field{flex:1;min-width:0;color:#8b8b90;font-size:16.7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:38px;display:flex;align-items:center}
 #text-field.has-text{color:#f2f2f4}
 #text-field{touch-action:none;-webkit-touch-callout:none}
-#text-field .field-value{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+#text-field .field-value{white-space:pre;overflow:hidden;text-overflow:ellipsis;min-width:0}
 #text-field .blue-caret{display:none;flex:none;background:#4681fa;width:2px;height:22px;margin-left:2px;opacity:1;animation:cursorBlinkV4 1.06s linear infinite;-webkit-animation:cursorBlinkV4 1.06s linear infinite}
 #app.keyboard-on #text-field .blue-caret{display:inline-block}
 #mic{width:31px;height:40px}
@@ -160,8 +160,9 @@ svg{display:block}
 .kb-row{display:flex;justify-content:center;gap:5px;height:43px;margin:0 0 9px}
 .kb-row:nth-child(2){padding-left:18px;padding-right:18px}
 .kb-row:nth-child(3){margin-top:1px}
-.kb-key{background:#404043;border:0;border-radius:7px;flex:1;min-width:0;color:#f9f9fb;display:grid;place-items:center;font-size:20px;box-shadow:0 1px rgba(0,0,0,.35);line-height:1;padding:0}
-.kb-key:active{background:#626269}
+.kb-key{background:#404043;border:0;border-radius:7px;flex:1;min-width:0;color:#f9f9fb;display:grid;place-items:center;font-size:20px;box-shadow:0 1px rgba(0,0,0,.35);line-height:1;padding:0;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.kb-key:active,.kb-key.kb-pressed{background:#626269}
+.kb-shift-on{background:#737b88!important;color:#11131b!important}
 .kb-wide{flex:1.42;background:#343439}
 .kb-wide svg{width:24px;height:24px}
 .kb-row:nth-child(4){height:42px;margin-top:2px}
@@ -288,7 +289,7 @@ svg{display:block}
   <button id="hub-close">Fechar controles</button>
  </section>
 </div>
-<script src="./teste-diag.js?v=3"></script>
+<script src="./teste-diag.js?v=6"></script>
 <script>
 (function(){
  'use strict';
@@ -310,9 +311,9 @@ svg{display:block}
  'Jabuti','Cobra','Lagarto','Camaleão','Iguana','Sapo','Rã','Salamandra','Borboleta','Abelha',
  'Formiga','Joaninha','Besouro','Barata','Mosquito','Libélula','Grilo','Gafanhoto','Aranha','Escorpião','Caracol'
  ];
- const GPT_TEST_VERSION=5;
+ const GPT_TEST_VERSION=6;
  let scene='home', keyboard=false, draft='', drawer=false, hub=false, generating=false, timer=null, longTimer=null, wasLong=false;
- let keyboardMode='letters';
+ let keyboardMode='letters',shiftNext=true;
  const isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
  const standalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
  const diag=window.JoaninhaDiagnostic({app,version:GPT_TEST_VERSION,
@@ -377,18 +378,22 @@ svg{display:block}
   const delta=scroller.scrollHeight-scroller.scrollTop-scroller.clientHeight;
   jump.classList.toggle('visible',delta>88 && scene!=='thinking' && scene!=='end');
  }
+ // Reuse the same text and cursor nodes for all keypresses, for fast typing
+ const value=document.createElement('span');
+ value.className='field-value';
+ const cursor=document.createElement('span');
+ cursor.className='blue-caret';cursor.setAttribute('aria-hidden','true');
+ field.replaceChildren(cursor,value);
  function updateComposer(){
   const ongoing=scene==='thinking'||scene==='list';
   const hasDraft=!!draft.trim()&&!ongoing;
   composer.classList.toggle('has-draft',hasDraft);
   field.classList.toggle('has-text',!!draft);
-  const value=document.createElement('span');
-  value.className='field-value';value.textContent=draft||'Perguntar ao ChatGPT';
-  const cursor=document.createElement('span');
-  cursor.className='blue-caret';cursor.setAttribute('aria-hidden','true');
-  // iOS placeholder: caret before placeholder, after actual typed text
-  if(draft)field.replaceChildren(value,cursor);
-  else field.replaceChildren(cursor,value);
+  value.textContent=draft||'Perguntar ao ChatGPT';
+  // Keep both DOM elements stable during fast typing (no reconstruction)
+  // iOS placeholder: cursor before placeholder, after the content
+  if(draft){if(cursor.previousSibling!==value)field.appendChild(cursor);}
+  else if(field.firstChild!==cursor)field.prepend(cursor);
   sendVoice.setAttribute('aria-label',ongoing?'Parar resposta':hasDraft?'Enviar mensagem':'Conversar por voz');
  }
  function showScene(next,options){
@@ -398,7 +403,7 @@ svg{display:block}
   app.classList.remove('scene-home','scene-thinking','scene-list','scene-end');
   app.classList.add('scene-'+next);
   // State transitions must never dismiss an already-open mock keyboard
-  if(next==='home')draft='';
+  if(next==='home'){draft='';shiftNext=true;refreshLetterLabels();}
   updateComposer();
   requestAnimationFrame(()=>{
    if(next==='end'){scroller.scrollTop=scroller.scrollHeight;}
@@ -422,7 +427,7 @@ svg{display:block}
   if(scene==='thinking'||scene==='list'){showScene('end');return;}
   if(!draft.trim()){setKeyboard(true);return;}
   $('bubble-row').querySelector('.bubble').textContent=draft.trim();
-  draft='';
+  draft='';shiftNext=true;refreshLetterLabels();
   startDemo();
  }
  $('top-menu').addEventListener('pointerdown',()=>{
@@ -542,6 +547,48 @@ svg{display:block}
    ['ABC','☺','espaço','↵']
   ]
  };
+ // Keep key DOM stable while typing and update labels only when Shift changes.
+ function refreshLetterLabels(){
+  if(keyboardMode!=='letters')return;
+  for(const button of $('keyboard').querySelectorAll('.kb-letter')){
+   const original=button.dataset.letter;
+   button.textContent=shiftNext?original:original.toLowerCase();
+  }
+  const shift=$('keyboard').querySelector('.kb-shift');
+  if(shift){
+   shift.classList.toggle('kb-shift-on',shiftNext);
+   shift.setAttribute('aria-pressed',String(shiftNext));
+  }
+ }
+ function commitKeyboardKey(key){
+  if(key==='123'){
+   keyboardMode='numbers';diag.event('keyboard-layout-change',{mode:'numbers'});
+   renderKeyboard();return;
+  }
+  if(key==='ABC'){
+   keyboardMode='letters';diag.event('keyboard-layout-change',{mode:'letters'});
+   renderKeyboard();return;
+  }
+  if(key==='⇧'){
+   shiftNext=!shiftNext;refreshLetterLabels();return;
+  }
+  if(key==='⌫'){
+   draft=draft.slice(0,-1);
+   // The next first letter is always uppercase
+   if(!draft)shiftNext=true;
+   refreshLetterLabels();
+  }else if(key==='↵'){sendDraft();return;}
+  else if(key==='espaço'){draft+=' ';}
+  else if(key==='#+='||key==='☺')return;
+  else{
+   const letter=keyboardMode==='letters'?key: null;
+   if(letter){
+    draft+=shiftNext?letter:letter.toLowerCase();
+    if(shiftNext){shiftNext=false;refreshLetterLabels();}
+   }else draft+=key;
+  }
+  updateComposer();
+ }
  function renderKeyboard(){
   const layout=keyboardLayouts[keyboardMode];
   ['kbTop','kbMiddle','kbBottom','kbControls'].forEach((id,rowIndex)=>{
@@ -550,30 +597,45 @@ svg{display:block}
    layout[rowIndex].forEach((key,idx)=>{
     const button=document.createElement('button');
     button.type='button';button.className='kb-key';
-    if((rowIndex===2&&(idx===0||idx===layout[rowIndex].length-1))||(rowIndex===3&&key!=='espaço'))button.classList.add('kb-wide');
+    if((rowIndex===2&&(idx===0||idx===layout[rowIndex].length-1))||(rowIndex===3&&key!=='espaço'))
+     button.classList.add('kb-wide');
     if(rowIndex===3){
      if(key==='123'||key==='ABC')button.classList.add('kb-123');
      else if(key==='☺')button.classList.add('kb-emoji');
      else if(key==='espaço')button.classList.add('kb-space');
      else button.classList.add('kb-return');
     }
+    if(keyboardMode==='letters'&&/^[A-Z]$/.test(key)){
+     button.classList.add('kb-letter');button.dataset.letter=key;
+    }else if(key==='⇧')button.classList.add('kb-shift');
     button.textContent=key==='espaço'?'':key;
     if(key==='espaço')button.setAttribute('aria-label','Espaço');
     if(key==='123')button.setAttribute('aria-label','Mostrar teclado numérico');
     if(key==='ABC')button.setAttribute('aria-label','Voltar ao teclado alfabético');
+    if(key==='⇧')button.setAttribute('aria-label','Alternar maiúsculas');
+    let lastImmediate=-Infinity;
+    // Register taps as soon as the finger touches the key, rather than
+    // waiting for click after release, which misses very rapid adjacent taps.
+    button.addEventListener('pointerdown',e=>{
+     if(e.pointerType!=='touch'&&e.pointerType!=='pen')return;
+     lastImmediate=performance.now();
+     e.preventDefault();
+     button.classList.add('kb-pressed');
+     commitKeyboardKey(key);
+    });
+    for(const ev of ['pointerup','pointercancel','pointerleave']){
+     button.addEventListener(ev,()=>button.classList.remove('kb-pressed'));
+    }
+    // Preserve desktop mouse and accessibility activation, suppress
+    // a duplicate synthetic click following a touch pointerdown.
     button.addEventListener('click',()=>{
-     if(key==='123'){keyboardMode='numbers';diag.event('keyboard-layout-change',{mode:'numbers'});renderKeyboard();return;}
-     if(key==='ABC'){keyboardMode='letters';diag.event('keyboard-layout-change',{mode:'letters'});renderKeyboard();return;}
-     if(key==='⌫')draft=draft.slice(0,-1);
-     else if(key==='↵'){sendDraft();return;}
-     else if(key==='espaço')draft+=' ';
-     else if(key==='⇧'||key==='#+='||key==='☺')return;
-     else draft+=keyboardMode==='letters'?key.toLowerCase():key;
-     updateComposer();
+     if(performance.now()-lastImmediate<700)return;
+     commitKeyboardKey(key);
     });
     row.appendChild(button);
    });
   });
+  refreshLetterLabels();
  }
  renderKeyboard();
  // Local-only prototype update channel, separate from v48 Joaninha updates
@@ -626,16 +688,8 @@ svg{display:block}
  document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible')checkForTestUpdate();
  });
- let touchX=0,touchY=0;
- page.addEventListener('touchstart',e=>{
-  if(e.touches.length!==1)return;
-  touchX=e.touches[0].clientX;touchY=e.touches[0].clientY;
- },{passive:true});
- page.addEventListener('touchend',e=>{
-  if(e.changedTouches.length!==1)return;
-  const dx=e.changedTouches[0].clientX-touchX;
-  if(touchX<26&&dx>90&&Math.abs(e.changedTouches[0].clientY-touchY)<100)setDrawer(true);
- },{passive:true});
+ // Opening the sidebar with a left-edge swipe is intentionally disabled
+ let touchX=0;
  $('drawer').addEventListener('touchstart',e=>{if(e.touches.length===1)touchX=e.touches[0].clientX;},{passive:true});
  $('drawer').addEventListener('touchend',e=>{if(e.changedTouches.length===1&&e.changedTouches[0].clientX-touchX < -65)setDrawer(false);},{passive:true});
  page.addEventListener('click',e=>{
