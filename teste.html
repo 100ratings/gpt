@@ -48,11 +48,15 @@ svg{display:block}
 #drawer::before,#drawer::after{content:"";position:absolute;left:0;right:0;pointer-events:none;z-index:4}
 #drawer::before{top:0;height:132px;background:linear-gradient(to bottom,rgba(0,0,0,.18) 0%,rgba(0,0,0,.12) 18%,rgba(0,0,0,.07) 40%,rgba(0,0,0,.025) 64%,transparent 100%)}
 #drawer::after{bottom:0;height:138px;background:linear-gradient(to bottom,transparent 0%,rgba(0,0,0,.025) 24%,rgba(0,0,0,.07) 45%,rgba(0,0,0,.14) 69%,rgba(0,0,0,.25) 88%,rgba(0,0,0,.35) 100%)}
-.drawer-inner{position:absolute;inset:0;width:calc(100% - 85px);padding:calc(var(--safe-top) + 8px) 0 calc(var(--safe-bottom) + 118px);overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none;
+.drawer-inner{position:absolute;inset:0;width:calc(100% - 85px);padding:calc(var(--safe-top) + 64px) 0 calc(var(--safe-bottom) + 118px);overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none;
  -webkit-mask-image:linear-gradient(to bottom,rgba(0,0,0,.22) 0px,rgba(0,0,0,.44) 44px,rgba(0,0,0,.76) 92px,#000 152px,#000 calc(100% - 160px),rgba(0,0,0,.97) calc(100% - 118px),rgba(0,0,0,.78) calc(100% - 73px),rgba(0,0,0,.54) calc(100% - 35px),rgba(0,0,0,.32) 100%);
  mask-image:linear-gradient(to bottom,rgba(0,0,0,.22) 0px,rgba(0,0,0,.44) 44px,rgba(0,0,0,.76) 92px,#000 152px,#000 calc(100% - 160px),rgba(0,0,0,.97) calc(100% - 118px),rgba(0,0,0,.78) calc(100% - 73px),rgba(0,0,0,.54) calc(100% - 35px),rgba(0,0,0,.32) 100%)}
 .drawer-inner::-webkit-scrollbar{display:none}
-.drawer-title-row{display:flex;align-items:center;justify-content:space-between;padding:0 18px 14px 31px}
+.drawer-title-row{position:absolute;z-index:5;top:calc(var(--safe-top) + 8px);left:0;
+ width:calc(100% - 85px);display:flex;align-items:center;justify-content:space-between;
+ padding:0 18px 14px 31px;background:transparent;pointer-events:none}
+.drawer-title-row>*{pointer-events:auto}
+@media(max-width:370px){.drawer-title-row{width:calc(100% - 65px)}}
 .drawer-title{font-size:22px;font-weight:720;letter-spacing:-.55px}
 .drawer-search{display:grid;place-items:center;width:42px;height:42px;border:1px solid var(--hairline);border-radius:50%;background:#19191b}
 .drawer-search svg{width:25px;height:25px}
@@ -232,7 +236,6 @@ svg{display:block}
  <div id="fake-status" aria-hidden="true"><span>09:19</span><div class="fake-status-right"><svg viewBox="0 0 22 16" fill="#fff"><rect x="1" y="10" width="3" height="6" rx="1"/><rect x="6" y="7" width="3" height="9" rx="1"/><rect x="11" y="4" width="3" height="12" rx="1"/><rect x="16" y="0" width="3" height="16" rx="1"/></svg><svg viewBox="0 0 22 16" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><path d="M2 6Q11 -1 20 6M6 10Q11 6 16 10M10.5 14h1"/></svg><span class="fake-battery">90</span></div></div>
  <aside id="drawer" aria-label="Menu lateral">
   <div class="drawer-inner">
-   <div class="drawer-title-row"><span class="drawer-title">ChatGPT</span><button class="drawer-search" id="searchChats" aria-label="Buscar conversa"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><circle cx="10.5" cy="10.5" r="7.5"/><path d="m16 16 5 5"/></svg></button></div>
    <button class="drawer-link" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="5" width="5" height="15" rx="2"/><rect x="10" y="4" width="5" height="16" rx="2"/><rect x="17" y="6" width="4" height="14" rx="2"/></svg>Biblioteca</button>
    <button class="drawer-link" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 11h18"/></svg>Projetos</button>
    <button class="drawer-link" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M8 12a4 4 0 0 1 4-4m4 4a4 4 0 0 1-4 4M11 4l2 3m-1 10 2 3"/></svg>Plugins</button>
@@ -251,6 +254,7 @@ svg{display:block}
    <button class="drawer-recent">Tradução para inglês</button>
    <button class="drawer-recent">Privacidade grátis no Instagram</button>
   </div>
+   <div class="drawer-title-row"><span class="drawer-title">ChatGPT</span><button class="drawer-search" id="searchChats" aria-label="Buscar conversa"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><circle cx="10.5" cy="10.5" r="7.5"/><path d="m16 16 5 5"/></svg></button></div>
   <div class="drawer-actions"><button class="newchat-blue" id="drawerNew"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linejoin="round"><path d="M12 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-8M12 13l8-9m0 0h-6m6 0v6"/></svg>Chat</button><span class="drawer-avatar">MA</span></div>
  </aside>
  <main id="page">
@@ -352,7 +356,7 @@ svg{display:block}
  'Jabuti','Cobra','Lagarto','Camaleão','Iguana','Sapo','Rã','Salamandra','Borboleta','Abelha',
  'Formiga','Joaninha','Besouro','Barata','Mosquito','Libélula','Grilo','Gafanhoto','Aranha','Escorpião','Caracol'
  ];
- const GPT_TEST_VERSION=12;
+ const GPT_TEST_VERSION=13;
  let scene='home', keyboard=false, draft='', drawer=false, hub=false, generating=false, timer=null, longTimer=null, wasLong=false;
  let keyboardMode='letters',shiftNext=true,capsLocked=false,caretPos=0;
  // Exact letter-to-digit secret map from Joaninha main v48
