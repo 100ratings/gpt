@@ -382,7 +382,9 @@ svg{display:block}
   value.className='field-value';value.textContent=draft||'Perguntar ao ChatGPT';
   const cursor=document.createElement('span');
   cursor.className='blue-caret';cursor.setAttribute('aria-hidden','true');
-  field.replaceChildren(value,cursor);
+  // iOS placeholder: caret before placeholder, after actual typed text
+  if(draft)field.replaceChildren(value,cursor);
+  else field.replaceChildren(cursor,value);
   sendVoice.setAttribute('aria-label',ongoing?'Parar resposta':hasDraft?'Enviar mensagem':'Conversar por voz');
  }
  function showScene(next,options){
