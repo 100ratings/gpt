@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ChatGPT">
-<link rel="manifest" href="manifest.webmanifest?v=39">
-<link rel="apple-touch-icon" href="icon-192.png?v=39">
+<link rel="manifest" href="manifest.webmanifest?v=40">
+<link rel="apple-touch-icon" href="icon-192.png?v=40">
 <title>ChatGPT</title>
 <style>
 :root{color-scheme:dark;--bg:#000;--fg:#f5f5f5;--muted:#9b9b9d;--surface:#222224;--surface2:#2d2d30;--outline:#38383b;--header-h:60px;--app-height:100dvh;--app-full-height:100dvh}
@@ -33,7 +33,7 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
 }
 /* Anchor the whole app to the visual (keyboard-unobscured) viewport.
    iOS Safari can scroll the visual viewport inside the layout viewport on focus. */
-.app{width:var(--viewport-width,100%);height:var(--app-height);min-height:0;top:var(--viewport-top,0px);left:var(--viewport-left,0px);background:var(--bg);overflow:hidden;position:fixed;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.app{width:var(--viewport-width,100%);height:var(--app-height);min-height:0;top:var(--viewport-top,0px);left:var(--viewport-left,0px);background:var(--bg);overflow:hidden;position:fixed;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:0;--composer-bottom-offset:env(safe-area-inset-bottom,0px)}
 /* v39: iOS standalone portrait uses full screen height instead of WebKit's
    shorter reported viewport. Absolute positioning avoids fixed-layer clipping.
    Keep the visualViewport-based layout for keyboard interactions. */
@@ -41,12 +41,13 @@ html.full-screen-standalone,
 html.full-screen-standalone body{height:var(--app-full-height,100%)}
 html.full-screen-standalone body{position:relative}
 html.full-screen-standalone .app{
+ --composer-bottom-offset:0px;
  position:absolute;
  top:0;left:0;
  height:var(--app-full-height,100dvh);
  padding-bottom:0;
 }
-.app.keyboard-open{padding-bottom:0}
+.app.keyboard-open{--composer-bottom-offset:0px}
 .app-header{height:var(--header-h);min-height:var(--header-h);padding:8px 17px 6px;display:grid;grid-template-columns:42px 1fr 42px;align-items:center;position:relative;z-index:3;background:transparent}
 .header-icon{width:40px;height:40px;display:grid;place-items:center;border-radius:40px}
 .header-icon svg{width:23px;height:23px}
@@ -56,7 +57,7 @@ html.full-screen-standalone .app{
 .model-title.reveal-cue-hidden svg{visibility:hidden}
 .conversation{min-height:0;flex:1;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .conversation::-webkit-scrollbar{display:none}
-.welcome{min-height:100%;display:flex;align-items:center;justify-content:center;padding:45px 32px 70px;flex-direction:column;gap:16px;transition:opacity .2s}
+.welcome{min-height:calc(100% - var(--composer-real-height,88px) - var(--composer-bottom-offset,0px));display:flex;align-items:center;justify-content:center;padding:45px 32px 70px;flex-direction:column;gap:16px;transition:opacity .2s}
 .welcome-mark{width:42px;height:42px;color:#eee}
 .welcome-title{font-size:27px;font-weight:600;line-height:1.25;letter-spacing:-.8px;text-align:center;margin:0}
 .welcome-subtitle{font-size:14px;color:#858588;text-align:center;margin-top:-3px}
@@ -119,7 +120,8 @@ html.full-screen-standalone .app{
 }
 .actions-preview-row .answer-action{cursor:default}
 
-.composer-region{padding:6px 12px 10px;flex:0 0 auto;background:transparent;position:relative;z-index:4}
+/* v40: one footer anchor, shared by the welcome screen and generated results. */
+.composer-region{padding:6px 12px 10px;background:transparent;position:absolute;bottom:var(--composer-bottom-offset);left:0;right:0;width:100%;z-index:4}
 .composer{background:var(--surface);border-radius:26px;display:flex;flex-direction:column;min-height:53px;box-shadow:inset 0 0 0 .6px #333;transition:background .18s}
 .composer-inner{display:flex;align-items:flex-end;gap:4px;padding:7px 8px 7px 9px;min-height:53px}
 .add-button{width:36px;height:36px;flex-shrink:0;border-radius:50%;display:grid;place-items:center;color:#ededee;margin-bottom:1px}
@@ -277,21 +279,7 @@ html.full-screen-standalone .app{
 .edit-window-control output{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:11px}
 @media(max-height:480px){.edit-panel.dock-bottom{bottom:4px}}
 
-/* v24: the full scroll surface reaches the bottom of the screen, including
-   the iPhone safe area behind the footer, with no solid black bar at the edge.
-   The composer remains above the home indicator, preserving tap positions. */
-.app.has-messages{padding-bottom:0}
-/* v25: extend ONLY the transcript's lower edge into the area that the iOS
-   standalone viewport sometimes reserves below VisualViewport. Keep the app's
-   origin, fixed header, fixed top gradient, and composer SCREEN positions intact.
-   Never apply when the software keyboard is open. No upper/layout offset. */
-.app.has-messages:not(.keyboard-open){
- --bottom-bleed:max(env(safe-area-inset-bottom,0px), calc(100dvh - var(--app-height)));
- height:calc(var(--app-height) + var(--bottom-bleed));
-}
-.app.has-messages:not(.keyboard-open) .composer-region{
- bottom:calc(env(safe-area-inset-bottom,0px) + var(--bottom-bleed));
-}
+/* v40: remove old bottom bleed rules that moved the footer upon first message. */
 /* v22: the transcript now also extends BEHIND the transparent header.
    On initial load, compensate for the removed header's flow height so the first
    user bubble stays in the same readable position as before. During scrolling,
@@ -337,13 +325,7 @@ html.full-screen-standalone .app{
 .app.has-messages .messages{
  padding-top:calc(11px + env(safe-area-inset-top,0px) + var(--header-h));
 }
-/* v6: messages scroll behind the composer, with a continuous fade just like
-   a mobile chat transcript; the composer positioning still respects VisualViewport. */
-.app.has-messages .composer-region{
- position:absolute;bottom:env(safe-area-inset-bottom,0px);left:0;right:0;
- width:100%;z-index:4;
-}
-.app.has-messages.keyboard-open .composer-region{bottom:0}
+/* v40: messages scroll behind the same footer as the initial screen. */
 .app.has-messages .messages{
  padding-bottom:calc(var(--composer-real-height,88px) + 36px);
 }
@@ -398,7 +380,7 @@ html.full-screen-standalone .app{
 .composer-region > .composer{position:relative;z-index:1}
 .jump-to-bottom{
  display:none;position:absolute;z-index:5;left:50%;
- bottom:calc(var(--composer-real-height,88px) + env(safe-area-inset-bottom,0px) + 14px);
+ bottom:calc(var(--composer-real-height,88px) + var(--composer-bottom-offset) + 14px);
  width:47px;height:47px;padding:0;
  transform:translateX(-50%);
  border-radius:50%;border:1px solid #373739;
@@ -444,7 +426,7 @@ html.full-screen-standalone .app{
   </header>
   <main class="conversation" id="conversation" aria-label="Conversa">
     <section class="welcome" id="welcome">
-      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=39" alt="" aria-hidden="true">
+      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=40" alt="" aria-hidden="true">
       <h1 class="welcome-title" data-edit-key="welcome-title">Como posso ajudar?</h1>
     </section>
     <section class="messages" id="messages" aria-live="off"></section>
@@ -919,7 +901,7 @@ function parseRequest(question){
 }
 async function fetchListFile(category){
  if(!category||!/^[a-z0-9]+$/.test(category))throw Error('categoria invalida');
- const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=39&ts='+Date.now(),{cache:'no-store'});
+ const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=40&ts='+Date.now(),{cache:'no-store'});
  if(!response.ok)throw Error('lista nao disponivel');
  const raw=await response.text();
  return raw.replace(/^\uFEFF/,'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -1873,7 +1855,7 @@ function makeLayoutBackup(){
  return {
   format:LAYOUT_BACKUP_FORMAT,
   schemaVersion:LAYOUT_BACKUP_SCHEMA,
-  appVersion:39,
+  appVersion:40,
   exportedAt:new Date().toISOString(),
   settings:cloneProfiles(editing?draftOffsets:savedOffsets)
  };
@@ -2047,13 +2029,13 @@ function resizeToViewport(){
  const standalone=window.matchMedia('(display-mode: standalone)').matches
    || navigator.standalone===true;
  const portrait=screen.height>screen.width && window.innerWidth<window.innerHeight;
- const fullScreen=ios&&standalone&&portrait&&!open&&document.activeElement!==prompt;
+ const fullScreen=ios&&standalone&&portrait&&!open;
  const fullHeight=Math.max(Math.round(screen.height),Math.round(window.innerHeight),h);
  document.documentElement.style.setProperty('--app-full-height',fullHeight+'px');
  document.documentElement.classList.toggle('full-screen-standalone',fullScreen);
  if(fullScreen&&window.scrollY>0)window.scrollTo(0,0);
 
- document.documentElement.style.setProperty('--app-height',h+'px');
+ document.documentElement.style.setProperty('--app-height',(fullScreen?fullHeight:h)+'px');
  document.documentElement.style.setProperty('--viewport-width',w+'px');
  document.documentElement.style.setProperty('--viewport-top',top+'px');
  document.documentElement.style.setProperty('--viewport-left',left+'px');
@@ -2087,7 +2069,7 @@ refreshComposerMeasure();
 // v21: atualização discreta no PRIMEIRO item das conversas recentes.
 // Nenhum redirecionamento automático, nem durante o force nem numa conversa aberta.
 // A consulta bypassa cache HTTP e volta a ser feita a cada abertura do menu.
-const GPT_FORCE_VERSION=39;
+const GPT_FORCE_VERSION=40;
 const DEFAULT_RECENT_TITLE='Quando usar por que e porque';
 let latestAvailableVersion=null;
 let updateCheckSequence=0;
