@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ChatGPT">
-<link rel="manifest" href="manifest.webmanifest?v=43">
-<link rel="apple-touch-icon" href="icon-192.png?v=43">
+<link rel="manifest" href="manifest.webmanifest?v=44">
+<link rel="apple-touch-icon" href="icon-192.png?v=44">
 <title>ChatGPT</title>
 <style>
 :root{color-scheme:dark;--bg:#000;--fg:#f5f5f5;--muted:#9b9b9d;--surface:#222224;--surface2:#2d2d30;--outline:#38383b;--header-h:60px;--app-height:100dvh;--app-full-height:100dvh}
@@ -55,7 +55,7 @@ html.full-screen-standalone .app.keyboard-open{
  --composer-bottom-offset:var(--keyboard-cover,0px);
 }
 .app.keyboard-open{--composer-bottom-offset:0px}
-.app-header{height:var(--header-h);min-height:var(--header-h);padding:8px 17px 6px;display:grid;grid-template-columns:42px 1fr 42px;align-items:center;position:relative;z-index:3;background:transparent}
+.app-header{touch-action:none;height:var(--header-h);min-height:var(--header-h);padding:8px 17px 6px;display:grid;grid-template-columns:42px 1fr 42px;align-items:center;position:relative;z-index:3;background:transparent}
 .header-icon{width:40px;height:40px;display:grid;place-items:center;border-radius:40px}
 .header-icon svg{width:23px;height:23px}
 .model-title{justify-self:center;display:flex;align-items:center;gap:5px;font-size:18px;font-weight:610;letter-spacing:-.4px;line-height:25px;padding:8px 6px}
@@ -433,7 +433,7 @@ html.full-screen-standalone .app.keyboard-open{
   </header>
   <main class="conversation" id="conversation" aria-label="Conversa">
     <section class="welcome" id="welcome">
-      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=43" alt="" aria-hidden="true">
+      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=44" alt="" aria-hidden="true">
       <h1 class="welcome-title" data-edit-key="welcome-title">Como posso ajudar?</h1>
     </section>
     <section class="messages" id="messages" aria-live="off"></section>
@@ -654,7 +654,43 @@ function chooseComposerMode(event){
  // An activation works only in the unused horizontal space of textarea.
  setSecretMode(tapX>boundary&&tapX<rect.width-6);
 }
-prompt.addEventListener('pointerdown',chooseComposerMode);
+// v44: on iOS PWAs, place the composer above the next keyboard BEFORE focus.
+// This prevents WebKit's focus-time visibility check from panning the page.
+let lastStableKeyboardCover=0;
+let preLiftPending=false;
+let preLiftResetTimer=null;
+let keyboardCoverStabilityTimer=null;
+function usesIOSStandaloneKeyboard(){
+ const ios=/iphone|ipad|ipod/i.test(navigator.userAgent)
+  || (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+ return ios&&(window.matchMedia('(display-mode: standalone)').matches
+  || navigator.standalone===true)&&screen.height>screen.width;
+}
+function prepareComposerFocus(){
+ if(!usesIOSStandaloneKeyboard()||editing||generating)return;
+ if(lastStableKeyboardCover>130&&lastStableKeyboardCover<Math.round(screen.height)*.85){
+  preLiftPending=true;
+  document.documentElement.style.setProperty('--keyboard-cover',lastStableKeyboardCover+'px');
+  void composerRegion.getBoundingClientRect().bottom;
+  clearTimeout(preLiftResetTimer);
+  preLiftResetTimer=setTimeout(()=>{
+   if(!preLiftPending)return;
+   preLiftPending=false;
+   scheduleViewportUpdate();
+  },1100);
+ }
+}
+prompt.addEventListener('pointerdown',event=>{
+ chooseComposerMode(event);
+ if(event.pointerType==='touch'&&document.activeElement!==prompt)prepareComposerFocus();
+});
+prompt.addEventListener('mousedown',event=>{
+ if(event.button!==0||!usesIOSStandaloneKeyboard()||document.activeElement===prompt)return;
+ prepareComposerFocus();
+ prompt.focus({preventScroll:true});
+ // Allow the native caret-placement gesture when text already exists.
+ if(!prompt.value.length)event.preventDefault();
+});
 // iOS may offer Copy/Paste/AutoFill after a second tap in an already-focused
 // empty field. Suppress that default text-editing gesture ONLY when the empty
 // composer is already focused. The first tap, real typing, autocorrect and
@@ -908,7 +944,7 @@ function parseRequest(question){
 }
 async function fetchListFile(category){
  if(!category||!/^[a-z0-9]+$/.test(category))throw Error('categoria invalida');
- const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=43&ts='+Date.now(),{cache:'no-store'});
+ const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=44&ts='+Date.now(),{cache:'no-store'});
  if(!response.ok)throw Error('lista nao disponivel');
  const raw=await response.text();
  return raw.replace(/^\uFEFF/,'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -1124,7 +1160,7 @@ document.getElementById('recentList').addEventListener('click',event=>{
 });
 document.getElementById('modelButton').addEventListener('click',()=>{sidebar.classList.remove('open');backdrop.classList.remove('open');modelPopover.classList.toggle('open');});
 document.getElementById('modelClose').addEventListener('click',closeOverlays);
-document.getElementById('addButton').addEventListener('click',()=>{if(didLongPress){didLongPress=false;return;}if(!editing){showToast('Conversa por texto');prompt.focus();}});
+document.getElementById('addButton').addEventListener('click',()=>{if(didLongPress){didLongPress=false;return;}if(!editing){showToast('Conversa por texto');prepareComposerFocus();prompt.focus({preventScroll:true});}});
 scroller.addEventListener('touchstart',()=>{modelPopover.classList.remove('open');},{passive:true});
 // v37: the unobtrusive reveal cue is ONLY the ChatGPT header chevron.
 // t=0: hide the chevron; t=5s: restore it; t=6s: begin a smooth
@@ -1862,7 +1898,7 @@ function makeLayoutBackup(){
  return {
   format:LAYOUT_BACKUP_FORMAT,
   schemaVersion:LAYOUT_BACKUP_SCHEMA,
-  appVersion:43,
+  appVersion:44,
   exportedAt:new Date().toISOString(),
   settings:cloneProfiles(editing?draftOffsets:savedOffsets)
  };
@@ -2052,7 +2088,25 @@ function resizeToViewport(){
  const closedGap=Math.max(0,fullHeight-baselineHeight);
  const fade=Math.min(1,shrink/Math.max(1,closedGap+50));
  const keyboardCover=fullScreen?Math.round(shrink+closedGap*fade):0;
- root.style.setProperty('--keyboard-cover',keyboardCover+'px');
+ if(open&&fullScreen){
+  clearTimeout(preLiftResetTimer);preLiftResetTimer=null;
+  preLiftPending=false;
+  clearTimeout(keyboardCoverStabilityTimer);
+  const measured=keyboardCover;
+  keyboardCoverStabilityTimer=setTimeout(()=>{
+   if(measured>130&&measured<Math.round(screen.height)*.85)
+    lastStableKeyboardCover=measured;
+  },100);
+ }else if(!open){
+  clearTimeout(keyboardCoverStabilityTimer);keyboardCoverStabilityTimer=null;
+  if(document.activeElement!==prompt){
+   preLiftPending=false;
+   clearTimeout(preLiftResetTimer);preLiftResetTimer=null;
+  }
+ }
+ const appliedCover=fullScreen&&preLiftPending&&!open
+  ?lastStableKeyboardCover:keyboardCover;
+ root.style.setProperty('--keyboard-cover',appliedCover+'px');
 
  // Keep --app-height scoped to measurements/editor controls; unlike v41,
  // it never changes the canvas size of the standalone app.
@@ -2083,10 +2137,20 @@ window.addEventListener('scroll',()=>{
  }
  scheduleViewportUpdate();
 },{passive:true});
-window.addEventListener('orientationchange',()=>setTimeout(scheduleViewportUpdate,250));
+window.addEventListener('orientationchange',()=>{
+ clearTimeout(preLiftResetTimer);
+ clearTimeout(keyboardCoverStabilityTimer);
+ preLiftResetTimer=null;keyboardCoverStabilityTimer=null;
+ preLiftPending=false;lastStableKeyboardCover=0;
+ setTimeout(scheduleViewportUpdate,250);
+});
 for(const phase of ['focus','blur'])prompt.addEventListener(phase,()=>{
  scheduleViewportUpdate();
- if(phase==='blur')requestAnimationFrame(()=>{if(!prompt.value)resetPromptHeight();});
+ if(phase==='blur'){
+  preLiftPending=false;
+  clearTimeout(preLiftResetTimer);preLiftResetTimer=null;
+  requestAnimationFrame(()=>{if(!prompt.value)resetPromptHeight();});
+ }
  // iOS animates the visual viewport over multiple frames on keyboard transitions.
  for(const delay of [60,180,360,600])setTimeout(scheduleViewportUpdate,delay);
 });
@@ -2098,7 +2162,7 @@ refreshComposerMeasure();
 // v21: atualização discreta no PRIMEIRO item das conversas recentes.
 // Nenhum redirecionamento automático, nem durante o force nem numa conversa aberta.
 // A consulta bypassa cache HTTP e volta a ser feita a cada abertura do menu.
-const GPT_FORCE_VERSION=43;
+const GPT_FORCE_VERSION=44;
 const DEFAULT_RECENT_TITLE='Quando usar por que e porque';
 let latestAvailableVersion=null;
 let updateCheckSequence=0;
