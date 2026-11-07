@@ -150,7 +150,8 @@ svg{display:block}
 #secretHotspot{position:absolute;right:79px;bottom:3px;width:70px;height:calc(100% - 6px);
  z-index:4;opacity:0;border:0!important;border-radius:0;padding:0;background:transparent!important;
  touch-action:manipulation;-webkit-tap-highlight-color:transparent}
-#app.keyboard-on #secretHotspot{height:42px;bottom:3px}
+/* When open, the entire blank upper row itself is the activation area */
+#app.keyboard-on #secretHotspot{display:none}
 #secretPeek{display:none;position:absolute;z-index:28;right:19px;top:101px;pointer-events:none;
  color:#c9c9d0;font-size:17px;font-weight:550;line-height:1.2;letter-spacing:.5px;font-variant-numeric:tabular-nums}
 #secretPeek.visible{display:block}
@@ -356,7 +357,7 @@ svg{display:block}
  'Jabuti','Cobra','Lagarto','Camaleão','Iguana','Sapo','Rã','Salamandra','Borboleta','Abelha',
  'Formiga','Joaninha','Besouro','Barata','Mosquito','Libélula','Grilo','Gafanhoto','Aranha','Escorpião','Caracol'
  ];
- const GPT_TEST_VERSION=16;
+ const GPT_TEST_VERSION=17;
  let scene='home', keyboard=false, draft='', drawer=false, hub=false, generating=false, timer=null, longTimer=null, wasLong=false;
  let keyboardMode='letters',shiftNext=true,capsLocked=false,caretPos=0;
  // Exact letter-to-digit secret map from Joaninha main v48
@@ -573,8 +574,21 @@ svg{display:block}
   }else diag.event('prompt-touch-without-dismiss');
  });
  field.addEventListener('pointercancel',()=>{fieldGesture=null;diag.event('prompt-gesture-cancel');});
- $('text-field').addEventListener('click',()=>{
+ $('text-field').addEventListener('click',e=>{
   if(swallowFieldClick){swallowFieldClick=false;return;}
+  // While the fake keyboard is open, the unused top-row space arms secret mode
+  if(scene==='home'&&!draft&&keyboard){
+   const labelRect=placeholder.getBoundingClientRect();
+   const fieldRect=field.getBoundingClientRect();
+   const blankArea=e.clientX>labelRect.right+6&&e.clientX<fieldRect.right-5&&
+    e.clientY>=fieldRect.top&&e.clientY<=fieldRect.bottom;
+   if(blankArea){
+    activateSecretHotspot();
+    return;
+   }
+  }
+  // Touching the placeholder switches back to normal text entry immediately
+  if(scene==='home'&&secretMode&&!draft)setSecretMode(false);
   setKeyboard(true,'prompt-tap');
  });
  $('text-field').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();setKeyboard(true,'prompt-accessibility');}});
