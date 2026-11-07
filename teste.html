@@ -169,10 +169,7 @@ svg{display:block}
 .kb-shift .caps-line{display:none;stroke:#f4f4f6;stroke-width:1.8;fill:none}
 .kb-shift.kb-caps-lock .caps-line{display:block}
 .kb-key.kb-letter{position:relative}
-.kb-key.kb-letter.kb-pressed::before{content:attr(data-show);position:absolute;bottom:calc(100% + 4px);
- left:50%;transform:translateX(-50%);z-index:40;min-width:42px;height:50px;
- padding:9px 7px;border-radius:9px 9px 13px 13px;background:#e5e5e9;color:#17171a;
- font-size:25px;display:grid;place-items:center;box-shadow:0 2px 10px #0009;pointer-events:none}
+/* Keep pressed-key highlighting only, never show a character popup above the key */
 #text-field .input-line{display:block;white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%;line-height:23px}
 #text-field .input-before,#text-field .input-after{white-space:pre-wrap;overflow-wrap:anywhere}
 #text-field .input-line .blue-caret{display:none;vertical-align:-4px;margin:0 1px}
@@ -338,7 +335,7 @@ svg{display:block}
  'Jabuti','Cobra','Lagarto','Camaleão','Iguana','Sapo','Rã','Salamandra','Borboleta','Abelha',
  'Formiga','Joaninha','Besouro','Barata','Mosquito','Libélula','Grilo','Gafanhoto','Aranha','Escorpião','Caracol'
  ];
- const GPT_TEST_VERSION=7;
+ const GPT_TEST_VERSION=8;
  let scene='home', keyboard=false, draft='', drawer=false, hub=false, generating=false, timer=null, longTimer=null, wasLong=false;
  let keyboardMode='letters',shiftNext=true,capsLocked=false,caretPos=0;
  const isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
@@ -857,22 +854,35 @@ svg{display:block}
  page.addEventListener('click',e=>{
   if(drawer && !e.target.closest('#header'))setDrawer(false);
  });
- // When the home screen has no generated list, #threadScroll is display:none.
- // Treat a stationary tap on the empty conversation area as a dismiss gesture.
- // Do not intercept the header, message field, keyboard or suggestion.
+ // The empty conversation area is the ONLY home-screen dismiss target.
+ // IMPORTANT: layout keys rebuild their buttons during pointerdown, detaching
+ // e.target before this bubbling handler executes. Use the original event
+ // composed path AND original coordinates, never e.target.closest() alone.
+ function isEmptyConversationArea(e){
+  if(scene!=='home'||!keyboard||app.classList.contains('jd-open'))return false;
+  const path=typeof e.composedPath==='function'?e.composedPath():[];
+  const excluded=new Set(['composer','keyboard','header','photoHint','jump',
+   'jdPanel','jdShade','drawer','sidebar','hub','recentAnimals']);
+  if(path.some(node=>node&&excluded.has(node.id)))return false;
+  if(path.some(node=>node?.classList?.contains?.('kb-key')))return false;
+  const top=$('header').getBoundingClientRect().bottom;
+  const bottom=composer.getBoundingClientRect().top;
+  return e.clientY>top&&e.clientY<bottom;
+ }
  let emptyConversationTap=null;
  page.addEventListener('pointerdown',e=>{
-  if(scene!=='home'||!keyboard||!e.isPrimary)return;
-  if(e.target.closest('#composer,#keyboard,#header,#photoHint,#jump'))return;
+  emptyConversationTap=null;
+  if(!e.isPrimary||!isEmptyConversationArea(e))return;
   emptyConversationTap={id:e.pointerId,x:e.clientX,y:e.clientY,time:performance.now()};
+  diag.event('empty-conversation-tap-start',{x:Math.round(e.clientX),y:Math.round(e.clientY)});
  },{passive:true});
  page.addEventListener('pointercancel',()=>{emptyConversationTap=null;},{passive:true});
  page.addEventListener('pointerup',e=>{
-  if(!keyboard||scene!=='home'||!emptyConversationTap||e.pointerId!==emptyConversationTap.id)return;
+  if(!emptyConversationTap||e.pointerId!==emptyConversationTap.id)return;
   const dx=e.clientX-emptyConversationTap.x,dy=e.clientY-emptyConversationTap.y;
   const duration=performance.now()-emptyConversationTap.time;
   emptyConversationTap=null;
-  if(Math.hypot(dx,dy)>12||duration>650)return;
+  if(!isEmptyConversationArea(e)||Math.hypot(dx,dy)>12||duration>650)return;
   diag.event('empty-conversation-tap-dismiss',{reason:'conversation-tap'});
   setKeyboard(false,'conversation-tap');
  },{passive:true});
