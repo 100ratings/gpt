@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#000000">
+<title>Joaninha Studio · Protótipo</title>
+<style>
+:root{color-scheme:dark;--accent:#3974f6;--glass:rgba(34,34,37,.9)}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Arial,sans-serif;-webkit-tap-highlight-color:transparent}
+button,input,select{font:inherit}button{cursor:pointer}
+#stage{position:absolute;inset:0;overflow:hidden;background:#000}
+#reference{display:block;border:0;width:100%;height:100%;background:#000}
+#tools{position:absolute;inset:0;pointer-events:none;z-index:50}
+#tools button,#tools select,#tools input,#tools label{pointer-events:auto}
+#bar{position:absolute;top:calc(env(safe-area-inset-top,0px) + 7px);left:10px;right:10px;display:flex;align-items:center;gap:7px;padding:7px;border:1px solid #3d3d42;border-radius:18px;background:rgba(27,27,30,.94);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);box-shadow:0 6px 28px #000a;pointer-events:auto}
+#brand{min-width:75px;line-height:1.05;padding-left:5px}#brand b{display:block;font-size:12px;letter-spacing:.15px}#brand small{font-size:9px;color:#aaa}
+.segmented{display:flex;background:#101012;border-radius:12px;padding:3px;min-width:0;flex:1}
+.segmented button{border:0;border-radius:9px;background:transparent;color:#b6b6bd;padding:9px 5px;font-size:11px;flex:1;white-space:nowrap;min-width:0}
+.segmented button.active{background:#434348;color:#fff;font-weight:650}
+.round{width:39px;height:39px;display:grid;place-items:center;flex:none;border:1px solid #55555b;background:#313136;border-radius:13px;color:#fff;font-size:19px;padding:0}
+#eye{touch-action:none}#save{font-size:12px;font-weight:700;border:0;border-radius:11px;background:#f4f4f5;color:#111;padding:0 11px;height:39px}
+#sceneRow{position:absolute;top:calc(env(safe-area-inset-top,0px) + 76px);left:13px;right:13px;display:flex;align-items:center;gap:8px;pointer-events:auto}
+#sceneRow select{border:1px solid #404047;background:rgba(28,28,30,.88);color:#fff;border-radius:12px;padding:10px 12px;min-width:0;font-size:12px;max-width:194px}
+#sceneRow .note{font-size:10px;color:#ddd;line-height:1.3;background:#000a;padding:6px 9px;border-radius:10px}
+#sceneRow .note b{color:#edd79f}
+#keyboard{display:none;position:absolute;left:0;right:0;bottom:0;height:var(--keyboard-h,40%);background:#1d1d20;border-radius:12px 12px 0 0;padding:14px 8px 40px;pointer-events:none;z-index:9;box-shadow:0 -2px 0 #3c3c3c}
+#stage.open #keyboard{display:block}
+.key-row{display:flex;justify-content:center;gap:5px;margin-bottom:9px}
+.key{height:clamp(29px,6.4vh,48px);flex:1;background:#48484b;border-radius:6px;display:grid;place-items:center;color:#eee;font-size:16px}
+.key-row:nth-child(2){padding:0 20px}.key-row:nth-child(3){padding:0 4px}
+.key.muted{background:#343439;font-size:13px;flex:1.3}
+#keyboard:after{content:"";display:block;height:5px;width:35%;border-radius:5px;background:#fff;margin:16px auto 0}
+#inspector{position:absolute;left:10px;right:10px;bottom:calc(env(safe-area-inset-bottom,0px) + 9px);max-width:480px;margin:0 auto;background:var(--glass);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);border:1px solid #54545a;box-shadow:0 5px 35px #000d;border-radius:22px;padding:12px;pointer-events:auto;display:grid;gap:10px;max-height:min(52vh,420px);overflow:auto;overscroll-behavior:contain}
+#stage.open #inspector{max-height:min(36vh,330px)}
+.inspect-top{display:flex;align-items:center;gap:8px}
+#selected{flex:1;min-width:0;background:#1a1a1d;color:#fff;border:1px solid #4b4b50;border-radius:12px;padding:11px 8px;font-size:13px}
+#coords{color:#bbb;font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.controls{display:flex;align-items:center;gap:13px;justify-content:space-between}
+.pad{width:124px;height:113px;display:grid;grid-template-areas:". up ." "left mid right" ". down .";grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:4px;flex:none;margin-left:5px}
+.pad button{background:#414146;border:1px solid #626269;color:#fff;border-radius:11px;font-size:20px;font-weight:600;touch-action:none;user-select:none}
+.pad button:active{background:#5d5d62}
+.pad .up{grid-area:up}.pad .down{grid-area:down}.pad .left{grid-area:left}.pad .right{grid-area:right}
+.pad .mid{grid-area:mid;display:grid;place-items:center;color:#d1b36d;border-radius:50%;border:2px solid #a78e52;font-size:12px}
+.side-controls{flex:1;min-width:0;display:grid;gap:8px}
+.side-controls label{font-size:11px;color:#d5d5d9;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.side-controls select,.side-controls input[type=number]{max-width:90px;border:1px solid #56565e;border-radius:8px;padding:7px;color:#fff;background:#222225;font-size:12px}
+.inspector-actions{display:flex;gap:7px}
+.inspector-actions button{flex:1;background:#35353b;border:1px solid #55555b;border-radius:11px;min-height:37px;padding:7px;color:#f7f7fa;font-size:11px;font-weight:600}
+.inspector-actions button:disabled{opacity:.4}
+#rangeRow{display:none;align-items:center;gap:8px;border-top:1px solid #46464b;padding-top:9px}
+#rangeRow.show{display:flex}
+#rangeLabel{min-width:92px;font-size:11px}
+#range{min-width:0;flex:1;accent-color:#d2b46f}
+#rangeValue{min-width:35px;font-size:12px;text-align:right;font-variant-numeric:tabular-nums}
+#status{position:absolute;left:50%;top:calc(env(safe-area-inset-top,0px) + 126px);transform:translateX(-50%);background:#333339;color:#fff;border:1px solid #54545a;border-radius:30px;padding:9px 13px;font-size:12px;white-space:nowrap;opacity:0;transition:opacity .18s;z-index:60;pointer-events:none}
+#status.show{opacity:1}
+#stage.clean #tools,#stage.clean #keyboard{display:none!important}
+@media(max-width:380px){#brand{min-width:61px}#brand b{font-size:11px}#save{padding:0 7px}#bar{gap:5px;padding:5px}#inspector{gap:7px}#sceneRow{top:calc(env(safe-area-inset-top,0px) + 69px)}}
+@media(max-height:650px){#inspector{max-height:43vh}#stage.open #inspector{max-height:46vh}#sceneRow .note{display:none}}
+</style>
+</head>
+<body>
+<div id="stage">
+  <iframe id="reference" src="./index.html" title="Interface real da Joaninha, somente para prévia"></iframe>
+  <div id="keyboard" aria-hidden="true">
+    <div class="key-row"><span class="key">Q</span><span class="key">W</span><span class="key">E</span><span class="key">R</span><span class="key">T</span><span class="key">Y</span><span class="key">U</span><span class="key">I</span><span class="key">O</span><span class="key">P</span></div>
+    <div class="key-row"><span class="key">A</span><span class="key">S</span><span class="key">D</span><span class="key">F</span><span class="key">G</span><span class="key">H</span><span class="key">J</span><span class="key">K</span><span class="key">L</span></div>
+    <div class="key-row"><span class="key muted">⇧</span><span class="key">Z</span><span class="key">X</span><span class="key">C</span><span class="key">V</span><span class="key">B</span><span class="key">N</span><span class="key">M</span><span class="key muted">⌫</span></div>
+    <div class="key-row"><span class="key muted">123</span><span class="key muted">☺</span><span class="key" style="flex:5">espaço</span><span class="key muted">↵</span></div>
+  </div>
+  <div id="tools">
+    <div id="bar">
+      <div id="brand"><b>JOANINHA</b><small>STUDIO · 0.1</small></div>
+      <div class="segmented" role="group" aria-label="Estado visual do teclado">
+        <button id="closed" class="active" aria-pressed="true">Fechado</button>
+        <button id="open" aria-pressed="false">Aberto</button>
+      </div>
+      <button class="round" id="eye" title="Segure para esconder o editor" aria-label="Segure para ver a tela limpa">◉</button>
+      <button id="save">Salvar</button>
+    </div>
+    <div id="sceneRow">
+      <select id="scene" aria-label="Tela de referência">
+        <option value="home">Tela inicial</option>
+        <option value="list">Conversa com lista</option>
+        <option value="end">Final da lista e ações</option>
+        <option value="menu">Menu lateral</option>
+      </select>
+      <span class="note"><b>Prévia isolada</b> · toque para selecionar, arraste para mover</span>
+    </div>
+    <div id="inspector">
+      <div class="inspect-top">
+        <select id="selected" aria-label="Elemento para ajustar"></select>
+        <span id="coords">X 0 · Y 0</span>
+      </div>
+      <div class="controls">
+        <div class="pad" aria-label="Mover elemento">
+          <button class="up" data-dir="up" aria-label="Subir">↑</button>
+          <button class="left" data-dir="left" aria-label="Esquerda">←</button>
+          <span class="mid">◎</span>
+          <button class="right" data-dir="right" aria-label="Direita">→</button>
+          <button class="down" data-dir="down" aria-label="Descer">↓</button>
+        </div>
+        <div class="side-controls">
+          <label>Passo por toque
+            <select id="step"><option value="1">1 px</option><option value="5">5 px</option><option value="10">10 px</option></select>
+          </label>
+          <label>Posição X <input id="x" type="number" min="-400" max="400" value="0" inputmode="numeric"></label>
+          <label>Posição Y <input id="y" type="number" min="-650" max="650" value="0" inputmode="numeric"></label>
+          <small style="font-size:10px;color:#a7a7ad">Toque: ajuste fino · Segure: movimento contínuo</small>
+        </div>
+      </div>
+      <div id="rangeRow"><span id="rangeLabel">Alcance</span><input id="range" type="range" min="0" max="500" value="140"><span id="rangeValue">140 px</span></div>
+      <div class="inspector-actions">
+        <button id="undo" title="Desfazer">↶ Desfazer</button>
+        <button id="redo" title="Refazer">↷ Refazer</button>
+        <button id="copy">Copiar perfil</button>
+        <button id="reset">Restaurar item</button>
+        <button id="export">JSON</button>
+      </div>
+    </div>
+  </div>
+  <div id="status" role="status" aria-live="polite"></div>
+</div>
+<script>
+(function(){
+'use strict';
+// Standalone visual-editor proof of concept: it NEVER modifies index.html
+// or the main app's gpt-force-layout-v4 settings
+const STORAGE='joaninha-studio-prototype-v1';
+const items=[
+['header','Topo · Barra superior'],['menu','Topo · Menu'],['model','Topo · Título ChatGPT'],['newchat','Topo · Nova conversa'],
+['fade-top','Topo · Degradê superior'],['welcome-logo','Início · Logotipo'],['welcome-title','Início · Texto central'],
+['bubble','Conversa · Bolha do usuário'],['font','Conversa · Tamanho da fonte'],['spacing','Conversa · Espaço entre itens'],
+['response-actions','Conversa · Botões da resposta'],['jump','Conversa · Seta para o final'],
+['fade-bottom','Rodapé · Degradê inferior'],['composer-region','Rodapé · Barra inteira'],['composer','Rodapé · Campo de mensagem'],
+['plus','Rodapé · Botão +'],['prompt','Rodapé · Texto / campo'],['microphone','Rodapé · Microfone'],
+['voice','Rodapé · Botão azul'],['send','Rodapé · Enviar'],['peek','Rodapé · Peek secreto']
+];
+const labelById=new Map(items);
+const special=new Set(['font','spacing','fade-top','fade-bottom']);
+const rangeSettings={'font':[8,42,16,'Tamanho da fonte'],'spacing':[-5,45,7,'Entre linhas'],'fade-top':[0,340,140,'Alcance superior'],'fade-bottom':[0,400,165,'Alcance inferior']};
+function freshProfile(){return {positions:{},font:16,spacing:7,'fade-top':140,'fade-bottom':165};}
+function freshState(){return {mode:'closed',scene:'home',selected:'composer-region',profiles:{closed:freshProfile(),open:freshProfile()}};}
+let state=freshState();
+try{
+ const old=JSON.parse(localStorage.getItem(STORAGE));
+ if(old&&old.profiles&&old.profiles.open&&old.profiles.closed){
+  for(const mode of ['open','closed']){
+   const p=old.profiles[mode];
+   for(const id of ['font','spacing','fade-top','fade-bottom']){
+    const n=Number(p[id]);
+    const r=rangeSettings[id];
+    if(Number.isFinite(n)&&n>=r[0]&&n<=r[1])state.profiles[mode][id]=n;
+   }
+   if(p.positions&&typeof p.positions==='object'){
+    for(const [key,v] of Object.entries(p.positions)){
+     if(labelById.has(key)&&v&&Number.isFinite(v.x)&&Number.isFinite(v.y))
+      state.profiles[mode].positions[key]={x:Math.round(v.x),y:Math.round(v.y)};
+    }
+   }
+  }
+ }
+}catch(error){}
+let history=[],future=[],drag=null,repeatTimer=null,repeatDelay=null,doc=null,viewApp=null;
+let currentScene='';
+const $=id=>document.getElementById(id);
+const stage=$('stage'),frame=$('reference'),elementSelect=$('selected');
+items.forEach(([id,label])=>{
+ const option=document.createElement('option');option.value=id;option.textContent=label;elementSelect.appendChild(option);
+});
+const animalNames=['Cachorro','Gato','Elefante','Leão','Tigre','Girafa','Zebra','Macaco','Gorila','Chimpanzé','Urso','Panda','Coelho','Cavalo','Vaca','Porco','Ovelha','Cabra','Galinha','Pato','Ganso','Peru','Pavão','Pinguim','Águia','Coruja','Papagaio','Tucano','Avestruz','Cisne','Baleia','Golfinho','Tubarão','Orca','Polvo','Lula','Água-viva','Estrela-do-mar','Cavalo-marinho','Peixe-palhaço','Peixe-espada','Arraia','Foca','Leão-marinho','Morsa','Lontra','Crocodilo','Jacaré','Tartaruga','Jabuti','Cobra','Lagarto','Camaleão','Iguana','Sapo','Rã','Salamandra','Borboleta','Abelha','Formiga','Joaninha','Besouro','Barata','Mosquito','Libélula','Grilo','Gafanhoto','Aranha','Escorpião','Caracol','Caranguejo','Lagosta','Camarão','Estrela-do-mar','Lobo','Raposa','Hiena','Suricato','Anta','Capivara','Tamanduá','Tatu','Preguiça','Rinoceronte','Hipopótamo','Búfalo','Camelo','Lhama','Alpaca','Esquilo','Castor','Lontra','Leopardo','Pantera','Javali','Ornitorrinco','Flamingo','Pelicano','Falcão','Beija-flor'];
+let toastTimer=null;
+function toast(message){
+ const el=$('status');el.textContent=message;el.classList.add('show');
+ clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2200);
+}
+function profile(){return state.profiles[state.mode];}
+function pos(key){
+ const raw=profile().positions[key];
+ return raw&&typeof raw==='object'?raw:{x:0,y:0};
+}
+function snapshot(){return JSON.stringify(state.profiles);}
+function remember(){history.push(snapshot());if(history.length>70)history.shift();future=[];}
+function historyApply(s){
+ try{const p=JSON.parse(s);if(!p.open||!p.closed)return;state.profiles=p;paint();}catch(e){}
+}
+$('undo').addEventListener('click',()=>{if(!history.length)return;future.push(snapshot());historyApply(history.pop());});
+$('redo').addEventListener('click',()=>{if(!future.length)return;history.push(snapshot());historyApply(future.pop());});
+function refreshControls(){
+ $('closed').classList.toggle('active',state.mode==='closed');
+ $('open').classList.toggle('active',state.mode==='open');
+ $('closed').setAttribute('aria-pressed',String(state.mode==='closed'));
+ $('open').setAttribute('aria-pressed',String(state.mode==='open'));
+ stage.classList.toggle('open',state.mode==='open');
+ $('scene').value=state.scene;
+ elementSelect.value=state.selected;
+ const p=pos(state.selected);
+ $('coords').textContent='X '+p.x+' · Y '+p.y;
+ if(document.activeElement!==$('x'))$('x').value=p.x;
+ if(document.activeElement!==$('y'))$('y').value=p.y;
+ const spec=rangeSettings[state.selected];
+ $('rangeRow').classList.toggle('show',!!spec);
+ if(spec){
+  const range=$('range');range.min=spec[0];range.max=spec[1];range.value=profile()[state.selected];
+  $('rangeLabel').textContent=spec[3];$('rangeValue').textContent=profile()[state.selected]+' px';
+ }
+ $('undo').disabled=history.length===0;$('redo').disabled=future.length===0;
+}
+function setMode(mode){
+ if(!['open','closed'].includes(mode))return;
+ state.mode=mode;paint();
+}
+$('closed').addEventListener('click',()=>setMode('closed'));
+$('open').addEventListener('click',()=>setMode('open'));
+$('scene').addEventListener('change',()=>{state.scene=$('scene').value;applyScene(true);paint();});
+elementSelect.addEventListener('change',()=>select(elementSelect.value));
+function select(key){
+ if(!labelById.has(key))return;
+ state.selected=key;paint();
+}
+function move(dx,dy,save=true){
+ if(special.has(state.selected))return;
+ if(save)remember();
+ const key=state.selected,p=pos(key);
+ profile().positions[key]={x:Math.max(-400,Math.min(400,p.x+dx)),y:Math.max(-650,Math.min(650,p.y+dy))};
+ paint();
+}
+function coordSet(which,input){
+ const n=Number(input.value);
+ if(!Number.isFinite(n)||Math.abs(n)>650||!Number.isInteger(n)){paint();return;}
+ remember();
+ const p=pos(state.selected);
+ profile().positions[state.selected]={x:which==='x'?Math.max(-400,Math.min(400,n)):p.x,y:which==='y'?n:p.y};
+ paint();
+}
+$('x').addEventListener('change',()=>coordSet('x',$('x')));
+$('y').addEventListener('change',()=>coordSet('y',$('y')));
+for(const btn of document.querySelectorAll('[data-dir]')){
+ const direction=btn.dataset.dir;
+ const step=()=>Number($('step').value)||1;
+ const run=()=>move(direction==='left'?-step():direction==='right'?step():0,direction==='up'?-step():direction==='down'?step():0,false);
+ btn.addEventListener('pointerdown',e=>{
+  e.preventDefault();remember();run();
+  clearTimeout(repeatDelay);clearInterval(repeatTimer);
+  repeatDelay=setTimeout(()=>{repeatTimer=setInterval(run,85);},340);
+ });
+ const stop=()=>{clearTimeout(repeatDelay);clearInterval(repeatTimer);};
+ for(const event of ['pointerup','pointercancel','pointerleave'])btn.addEventListener(event,stop);
+ btn.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();remember();run();}});
+}
+let rangeStart=null;
+$('range').addEventListener('pointerdown',()=>{remember();rangeStart=true;});
+$('range').addEventListener('input',()=>{
+ if(!rangeStart){remember();rangeStart=true;}
+ profile()[state.selected]=Number($('range').value);paint();
+});
+$('range').addEventListener('change',()=>{rangeStart=null;});
+$('copy').addEventListener('click',()=>{
+ const other=state.mode==='open'?'closed':'open';
+ if(!confirm('Copiar todos os ajustes do perfil '+(other==='open'?'aberto':'fechado')+' para o perfil atual?'))return;
+ remember();state.profiles[state.mode]=JSON.parse(JSON.stringify(state.profiles[other]));paint();toast('Perfil copiado');
+});
+$('reset').addEventListener('click',()=>{
+ if(!confirm('Restaurar somente '+labelById.get(state.selected)+' neste perfil?'))return;
+ remember();delete profile().positions[state.selected];
+ if(rangeSettings[state.selected])profile()[state.selected]=rangeSettings[state.selected][2];
+ paint();
+});
+$('save').addEventListener('click',()=>{
+ try{
+  localStorage.setItem(STORAGE,JSON.stringify({schema:1,profiles:state.profiles}));
+  toast('Salvo apenas no Studio, sem alterar a Joaninha');
+ }catch(e){toast('Não foi possível salvar o rascunho');}
+});
+$('export').addEventListener('click',()=>{
+ const file=new Blob([JSON.stringify({format:'joaninha-studio-draft',version:1,createdAt:new Date().toISOString(),profiles:state.profiles},null,2)],{type:'application/json'});
+ const url=URL.createObjectURL(file),a=document.createElement('a');
+ a.href=url;a.download='Joaninha_Studio_Ajustes.json';document.body.appendChild(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),8000);
+});
+const eye=$('eye');
+for(const evt of ['pointerdown'])eye.addEventListener(evt,e=>{e.preventDefault();stage.classList.add('clean');});
+for(const evt of ['pointerup','pointercancel','pointerleave'])eye.addEventListener(evt,()=>stage.classList.remove('clean'));
+window.addEventListener('pointerup',()=>stage.classList.remove('clean'));
+function makeDemo(){
+ if(!doc||!viewApp)return;
+ const messages=doc.getElementById('messages'),conversation=doc.getElementById('conversation');
+ messages.replaceChildren();
+ const user=doc.createElement('div');user.className='message-user';
+ const bubble=doc.createElement('div');bubble.className='bubble';bubble.textContent='Liste 100 animais';bubble.dataset.editKey='bubble';user.appendChild(bubble);
+ const assistant=doc.createElement('section');assistant.className='assistant-message';
+ const list=doc.createElement('ol');list.className='answer-list';
+ for(let i=0;i<100;i++){
+  const li=doc.createElement('li'),number=doc.createElement('span');number.className='list-number';
+  const digits=doc.createElement('span');digits.textContent=String(i+1);
+  const dot=doc.createElement('span');dot.className='list-dot';dot.textContent='.';
+  number.append(digits,dot);li.append(number,doc.createTextNode(animalNames[i]||'Animal '+(i+1)));
+  list.appendChild(li);
+ }
+ const actions=doc.createElement('div');actions.className='response-actions visible';actions.dataset.editKey='response-actions';
+ actions.innerHTML='<button class="answer-action" type="button" aria-label="Copiar">▢</button><button class="answer-action" type="button" aria-label="Avaliar">♧</button><button class="answer-action" type="button" aria-label="Ouvir">◖))</button><button class="answer-action" type="button" aria-label="Compartilhar">⇧</button><button class="answer-action" type="button" aria-label="Mais">•••</button>';
+ assistant.append(list,actions);messages.append(user,assistant);
+ viewApp.classList.add('has-messages');
+ conversation.scrollTop=state.scene==='end'?conversation.scrollHeight:Math.min(240,conversation.scrollHeight/3);
+}
+function applyScene(force){
+ if(!doc||!viewApp)return;
+ if(!force&&currentScene===state.scene)return;
+ currentScene=state.scene;
+ const sidebar=doc.getElementById('sidePanel'),backdrop=doc.getElementById('backdrop');
+ if(sidebar)sidebar.classList.toggle('open',state.scene==='menu');
+ if(backdrop)backdrop.classList.toggle('open',state.scene==='menu');
+ if(state.scene==='home'||state.scene==='menu'){
+  viewApp.classList.remove('has-messages');
+  doc.getElementById('messages').replaceChildren();
+ }else makeDemo();
+}
+function virtualKeyboardHeight(){
+ return Math.max(290,Math.min(425,Math.round(window.innerHeight*.417)));
+}
+function insertFrameStyles(){
+ const style=doc.createElement('style');
+ style.id='joaninha-studio-injected';
+ style.textContent='html.joaninha-studio .jump-to-bottom{display:flex!important;bottom:calc(var(--composer-real-height,88px) + var(--studio-keyboard-height,0px) + 14px)!important;pointer-events:none!important}'
+ + 'html.joaninha-studio .app.has-messages .app-header{z-index:3}'
+ + 'html.joaninha-studio .composer-region{bottom:var(--studio-keyboard-height,0px)!important}'
+ + 'html.joaninha-studio .secret-confirmation.studio-peek{opacity:1!important;color:#dfdfdf!important;visibility:visible!important;display:inline!important;z-index:9}'
+ + 'html.joaninha-studio .app.has-messages .conversation{padding-bottom:var(--studio-keyboard-height,0px)}';
+ doc.head.appendChild(style);
+}
+function paint(){
+ refreshControls();
+ if(!doc||!viewApp)return;
+ applyScene(false);
+ const p=profile(),open=state.mode==='open';
+ const h=open?virtualKeyboardHeight():0;
+ stage.style.setProperty('--keyboard-h',h+'px');
+ doc.documentElement.style.setProperty('--studio-keyboard-height',h+'px');
+ viewApp.classList.toggle('keyboard-open',open);
+ // These overrides apply only inside the disposable preview iframe
+ viewApp.style.setProperty('--conversation-font-size',p.font+'px','important');
+ viewApp.style.setProperty('--list-item-spacing',p.spacing+'px','important');
+ viewApp.style.setProperty('--top-fade-height',p['fade-top']+'px','important');
+ viewApp.style.setProperty('--fade-height',p['fade-bottom']+'px','important');
+ viewApp.style.setProperty('--top-fade-position','0px','important');
+ viewApp.style.setProperty('--fade-position','0px','important');
+ const nodes=Array.from(doc.querySelectorAll('[data-edit-key]'));
+ const bubble=doc.querySelector('.message-user .bubble');
+ if(bubble&&bubble.dataset.editKey!=='bubble')bubble.dataset.editKey='bubble';
+ for(const node of nodes){
+  const key=node.dataset.editKey,coords=p.positions[key]||{x:0,y:0};
+  if(key==='jump')node.style.setProperty('transform','translate(calc(-50% + '+coords.x+'px),'+coords.y+'px)','important');
+  else node.style.setProperty('transform','translate('+coords.x+'px,'+coords.y+'px)','important');
+  const chosen=key===state.selected;
+  node.style.setProperty('outline',chosen?'2px dashed #f3d17a':'none','important');
+  node.style.setProperty('outline-offset',chosen?'4px':'0px','important');
+ }
+ // Peek has a separate preview because it is normally hidden
+ const peek=doc.getElementById('secretConfirmation');
+ if(peek){
+  const coords=p.positions.peek||{x:0,y:0};
+  peek.classList.toggle('studio-peek',state.selected==='peek');
+  peek.textContent=state.selected==='peek'?'23':'';
+  peek.style.setProperty('transform','translate('+coords.x+'px,'+coords.y+'px)','important');
+  peek.style.setProperty('outline',state.selected==='peek'?'2px dashed #f3d17a':'none','important');
+ }
+ const jump=doc.getElementById('jumpToBottom');
+ if(jump)jump.style.setProperty('display',state.selected==='jump'||state.scene==='list'?'flex':'none','important');
+}
+function onFramePointerDown(e){
+ if(!doc)return;
+ const hit=e.target.closest&&e.target.closest('[data-edit-key]');
+ if(!hit)return;
+ // Pointer events in the preview never trigger a real message or secret effect
+ e.preventDefault();e.stopPropagation();
+ const key=hit.dataset.editKey;
+ if(!labelById.has(key))return;
+ state.selected=key;remember();
+ drag={x:e.clientX,y:e.clientY,origin:pos(key),key};
+ paint();
+}
+function onFramePointerMove(e){
+ if(!drag)return;
+ e.preventDefault();
+ const dx=Math.round(e.clientX-drag.x),dy=Math.round(e.clientY-drag.y);
+ profile().positions[drag.key]={x:Math.max(-400,Math.min(400,drag.origin.x+dx)),y:Math.max(-650,Math.min(650,drag.origin.y+dy))};
+ paint();
+}
+function onFrameClick(e){
+ const hit=e.target.closest&&e.target.closest('[data-edit-key]');
+ if(hit){e.preventDefault();e.stopPropagation();}
+}
+frame.addEventListener('load',()=>{
+ try{
+  doc=frame.contentDocument;viewApp=doc.querySelector('.app');
+  if(!doc||!viewApp)throw Error('iframe not accessible');
+  doc.documentElement.classList.add('joaninha-studio');
+  insertFrameStyles();
+  doc.addEventListener('pointerdown',onFramePointerDown,true);
+  doc.addEventListener('pointermove',onFramePointerMove,{capture:true,passive:false});
+  doc.addEventListener('pointerup',()=>{drag=null;},true);
+  doc.addEventListener('pointercancel',()=>{drag=null;},true);
+  doc.addEventListener('click',onFrameClick,true);
+  doc.addEventListener('contextmenu',e=>e.preventDefault(),true);
+  applyScene(true);paint();toast('Studio pronto · a v48 permanece intacta');
+ }catch(err){toast('Prévia indisponível: abra o Studio no mesmo domínio da Joaninha');}
+});
+window.addEventListener('resize',paint);
+refreshControls();
+})();
+</script>
+</body>
+</html>
