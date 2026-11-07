@@ -310,7 +310,7 @@ svg{display:block}
  'Jabuti','Cobra','Lagarto','Camaleão','Iguana','Sapo','Rã','Salamandra','Borboleta','Abelha',
  'Formiga','Joaninha','Besouro','Barata','Mosquito','Libélula','Grilo','Gafanhoto','Aranha','Escorpião','Caracol'
  ];
- const GPT_TEST_VERSION=4;
+ const GPT_TEST_VERSION=5;
  let scene='home', keyboard=false, draft='', drawer=false, hub=false, generating=false, timer=null, longTimer=null, wasLong=false;
  let keyboardMode='letters';
  const isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
@@ -641,6 +641,25 @@ svg{display:block}
  page.addEventListener('click',e=>{
   if(drawer && !e.target.closest('#header'))setDrawer(false);
  });
+ // When the home screen has no generated list, #threadScroll is display:none.
+ // Treat a stationary tap on the empty conversation area as a dismiss gesture.
+ // Do not intercept the header, message field, keyboard or suggestion.
+ let emptyConversationTap=null;
+ page.addEventListener('pointerdown',e=>{
+  if(scene!=='home'||!keyboard||!e.isPrimary)return;
+  if(e.target.closest('#composer,#keyboard,#header,#photoHint,#jump'))return;
+  emptyConversationTap={id:e.pointerId,x:e.clientX,y:e.clientY,time:performance.now()};
+ },{passive:true});
+ page.addEventListener('pointercancel',()=>{emptyConversationTap=null;},{passive:true});
+ page.addEventListener('pointerup',e=>{
+  if(!keyboard||scene!=='home'||!emptyConversationTap||e.pointerId!==emptyConversationTap.id)return;
+  const dx=e.clientX-emptyConversationTap.x,dy=e.clientY-emptyConversationTap.y;
+  const duration=performance.now()-emptyConversationTap.time;
+  emptyConversationTap=null;
+  if(Math.hypot(dx,dy)>12||duration>650)return;
+  diag.event('empty-conversation-tap-dismiss',{reason:'conversation-tap'});
+  setKeyboard(false,'conversation-tap');
+ },{passive:true});
  // A desktop-only shortcut; not displayed on the iPhone reproduction
  window.addEventListener('keydown',e=>{
   if(e.key==='Escape'){setHub(false);setDrawer(false);}
