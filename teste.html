@@ -114,9 +114,10 @@ svg{display:block}
 #bottom-fade{position:absolute;z-index:12;left:0;right:0;bottom:0;height:168px;pointer-events:none;background:linear-gradient(to bottom,transparent 0%,rgba(0,0,0,.1) 12%,rgba(0,0,0,.48) 50%,rgba(0,0,0,.93) 83%,#000 100%);display:none}
 #app:not(.scene-home) #top-fade,#app:not(.scene-home) #bottom-fade{display:block}
 #app.keyboard-on #bottom-fade{bottom:var(--kbd-h);height:115px}
-#photoHint{position:absolute;left:24px;right:24px;bottom:calc(var(--composer-bottom) + 70px);display:flex;align-items:center;gap:12px;z-index:14;min-height:36px;white-space:nowrap;overflow:hidden;font-size:16px;letter-spacing:-.2px;color:#c5c5c8}
+#photoHint{position:absolute;left:24px;right:24px;bottom:calc(var(--composer-bottom) + 70px);display:none;align-items:center;gap:12px;z-index:14;min-height:36px;white-space:nowrap;overflow:hidden;font-size:16px;letter-spacing:-.2px;color:#c5c5c8}
 #photoHint .thumbnail{width:23px;height:27px;flex:none;border:1px solid #303035;border-radius:6px;background:linear-gradient(180deg,#090a0e 25%,#121723 25% 72%,#070709 72%);display:flex;align-items:center;justify-content:center;color:#c5c8d3;font-size:9px;overflow:hidden}
 #photoHint span:last-child{overflow:hidden;text-overflow:ellipsis}
+#app.scene-home.keyboard-on #photoHint{display:flex}
 #app:not(.scene-home) #photoHint{display:none}
 #app.keyboard-on #photoHint{bottom:calc(var(--kbd-h) + 112px);left:22px}
 #app.keyboard-on #photoHint .thumbnail{background:transparent;border:0;width:25px;height:26px;color:#2aa2ff;font-size:25px}
@@ -132,7 +133,7 @@ svg{display:block}
 #text-field.has-text{color:#f2f2f4}
 #text-field{touch-action:none;-webkit-touch-callout:none}
 #text-field .field-value{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-#text-field .blue-caret{display:none;flex:none;background:#4681fa;width:2px;height:22px;margin-left:2px;animation:caret 1.05s step-end infinite}
+#text-field .blue-caret{display:none;flex:none;background:#4681fa;width:2px;height:22px;margin-left:2px;opacity:1;animation:cursorBlinkV4 1.06s linear infinite;-webkit-animation:cursorBlinkV4 1.06s linear infinite}
 #app.keyboard-on #text-field .blue-caret{display:inline-block}
 #mic{width:31px;height:40px}
 #mic svg{width:25px;height:25px}
@@ -146,7 +147,8 @@ svg{display:block}
 #app.keyboard-on #composer{left:12px;right:12px;bottom:calc(var(--kbd-h) + 12px);height:91px;border-radius:24px;display:grid;grid-template-columns:auto 1fr auto auto auto;grid-template-rows:42px 38px;gap:0 8px;padding:7px 8px 5px 11px}
 #app.keyboard-on #text-field{grid-column:1/6;grid-row:1;align-items:center;padding-left:3px;font-size:16.7px}
 /* Cursor now follows typed text */
-@keyframes caret{50%{opacity:0}}
+@keyframes cursorBlinkV4{0%,49.9%{opacity:1}50%,100%{opacity:0}}
+@-webkit-keyframes cursorBlinkV4{0%,49.9%{opacity:1}50%,100%{opacity:0}}
 #app.keyboard-on #add{grid-column:1;grid-row:2;justify-self:start;width:33px}
 #app.keyboard-on #typingMeter{display:block;grid-column:3;grid-row:2}
 #typingMeter{display:none;width:24px;height:24px;border-radius:50%;border:2px solid #68707c;border-left-color:#3369f4;border-bottom-color:#3369f4;position:relative;align-self:center}
@@ -180,7 +182,9 @@ svg{display:block}
 #testTag{display:none}
 @media(max-width:370px){#composer{left:20px;right:20px}#header{left:13px;right:13px}#home-tabs{width:152px}#list .row{font-size:16px}.drawer-inner{width:calc(100% - 65px)}}
 @media(max-height:720px){:root{--safe-top:max(35px,env(safe-area-inset-top,0px))}#keyboard{padding-top:13px}.kb-row{height:38px;margin-bottom:6px}}
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}
+ /* A typing insertion point remains visibly active, even with reduced motion enabled */
+ #app.keyboard-on #text-field .blue-caret{animation:cursorBlinkV4 1.06s linear infinite!important;-webkit-animation:cursorBlinkV4 1.06s linear infinite!important}}
 </style>
 </head>
 <body>
@@ -229,7 +233,7 @@ svg{display:block}
     </button>
    </div>
   </header>
-  <div id="photoHint" aria-hidden="true"><span class="thumbnail" id="photoThumb">▥</span><span id="hintText">Anexar foto recente</span></div>
+  <div id="photoHint" aria-hidden="true"><span class="thumbnail" id="photoThumb"></span><span id="hintText"></span></div>
   <div id="threadScroll" role="region" aria-label="Conversa, rolagem independente">
    <div id="thread-inner">
     <div id="bubble-row"><div class="bubble">Liste 100 animais</div></div>
@@ -306,7 +310,7 @@ svg{display:block}
  'Jabuti','Cobra','Lagarto','Camaleão','Iguana','Sapo','Rã','Salamandra','Borboleta','Abelha',
  'Formiga','Joaninha','Besouro','Barata','Mosquito','Libélula','Grilo','Gafanhoto','Aranha','Escorpião','Caracol'
  ];
- const GPT_TEST_VERSION=3;
+ const GPT_TEST_VERSION=4;
  let scene='home', keyboard=false, draft='', drawer=false, hub=false, generating=false, timer=null, longTimer=null, wasLong=false;
  let keyboardMode='letters';
  const isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
@@ -340,7 +344,7 @@ svg{display:block}
  }
  function setKeyboard(open,reason='unspecified'){
   const next=!!open;
-  if(!next&&keyboard&&reason!=='prompt-swipe-down'){
+  if(!next&&keyboard&&reason!=='prompt-swipe-down'&&reason!=='conversation-tap'){
    diag.event('keyboard-close-prevented',{reason});
    return false;
   }
@@ -349,8 +353,8 @@ svg{display:block}
   diag.event('keyboard-change',{from:keyboard,to:next,reason});
   keyboard=next;
   app.classList.toggle('keyboard-on',keyboard);
-  hintText.textContent=keyboard?'Organize, filtre e refine suas playlists de sy…':'Anexar foto recente';
-  photoThumb.textContent=keyboard?'▦':'▥';
+  hintText.textContent=keyboard?'Organize, filtre e refine suas playlists de sy…':'';
+  photoThumb.textContent=keyboard?'▦':'';
   if(keyboard)scroller.scrollTop=Math.max(0,scroller.scrollTop);
   updateComposer();
   setTimeout(refreshJump,40);
@@ -493,6 +497,23 @@ svg{display:block}
  $('sendVoice').addEventListener('click',()=>sendDraft());
  $('jump').addEventListener('click',()=>{scroller.scrollTo({top:scroller.scrollHeight,behavior:'smooth'});});
  scroller.addEventListener('scroll',refreshJump,{passive:true});
+ // A tap on any part of the conversation hides the mock keyboard,
+ // while dragging to scroll does not count as a tap
+ let conversationTap=null;
+ scroller.addEventListener('pointerdown',e=>{
+  if(!keyboard||!e.isPrimary)return;
+  conversationTap={id:e.pointerId,x:e.clientX,y:e.clientY,time:performance.now()};
+ },{passive:true});
+ scroller.addEventListener('pointercancel',()=>{conversationTap=null;},{passive:true});
+ scroller.addEventListener('pointerup',e=>{
+  if(!keyboard||!conversationTap||e.pointerId!==conversationTap.id)return;
+  const dx=e.clientX-conversationTap.x,dy=e.clientY-conversationTap.y;
+  const duration=performance.now()-conversationTap.time;
+  conversationTap=null;
+  if(Math.hypot(dx,dy)>12||duration>650)return;
+  diag.event('conversation-tap-dismiss',{reason:'conversation-tap'});
+  setKeyboard(false,'conversation-tap');
+ },{passive:true});
  $('hub-scrim').addEventListener('click',()=>setHub(false));
  $('hub-close').addEventListener('click',()=>setHub(false));
  for(const b of $('hub-grid').querySelectorAll('button')){
