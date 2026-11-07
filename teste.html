@@ -489,7 +489,7 @@ svg{display:block}
   ordered.splice(position-1,0,items[0]);
   return ordered;
  }
- const GPT_TEST_VERSION=21;
+ const GPT_TEST_VERSION=22;
  let scene='home', keyboard=false, draft='', drawer=false, hub=false, generating=false, timer=null, longTimer=null, wasLong=false;
  let temporaryChat=false;
  let keyboardMode='letters',shiftNext=true,capsLocked=false,caretPos=0;
@@ -527,7 +527,7 @@ svg{display:block}
  }
  function setKeyboard(open,reason='unspecified'){
   const next=!!open;
-  if(!next&&keyboard&&reason!=='prompt-swipe-down'&&reason!=='conversation-tap'){
+  if(!next&&keyboard&&reason!=='prompt-swipe-down'&&reason!=='conversation-tap'&&reason!=='message-sent'){
    diag.event('keyboard-close-prevented',{reason});
    return false;
   }
@@ -566,6 +566,7 @@ svg{display:block}
   stopAuto();
   draft='';caretPos=0;capsLocked=false;shiftNext=true;
   setSecretMode(false);refreshLetterLabels();updateComposer();
+  setKeyboard(false,'message-sent');
   $('bubble-row').querySelector('.bubble').textContent=message;
   const intro=$('answerIntro');
   intro.textContent='';
@@ -715,6 +716,7 @@ svg{display:block}
    refreshJump();
   });
   if(options&&options.closeDrawer)setDrawer(false);
+  if(next==='home')setKeyboard(true,'new-chat');
  }
  function sendDraft(){
   if(scene==='thinking'||scene==='list'){cancelReply();showScene('end');return;}
@@ -1206,6 +1208,7 @@ svg{display:block}
   if(e.ctrlKey&&e.shiftKey&&e.key.toLowerCase()==='t'){e.preventDefault();setHub(!hub);}
  });
  updateComposer();
+ setKeyboard(true,'initial-home');
 })();
 </script>
 </body>
