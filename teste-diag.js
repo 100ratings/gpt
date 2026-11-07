@@ -120,7 +120,9 @@ window.JoaninhaDiagnostic=function({app,getState,version}){
   started=new Date().toISOString();t0=performance.now();
   lastSig='';lastSnapshot=0;lastPersist=0;lastUi=0;
   record('event',{name:'start',version});snapshot('baseline',true);
-  tick=setInterval(()=>{if(document.visibilityState==='visible')snapshot('poll');},140);
+  // The sampled layout work must never compete with rapid typing.
+  // State transitions and important events still trigger immediate captures.
+  tick=setInterval(()=>{if(document.visibilityState==='visible')snapshot('poll');},360);
   persist();render();
  }
  function stop(){
