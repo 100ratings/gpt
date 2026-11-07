@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ChatGPT">
-<link rel="manifest" href="manifest.webmanifest?v=45">
-<link rel="apple-touch-icon" href="icon-192.png?v=45">
+<link rel="manifest" href="manifest.webmanifest?v=46">
+<link rel="apple-touch-icon" href="icon-192.png?v=46">
 <title>ChatGPT</title>
 <style>
 :root{color-scheme:dark;--bg:#000;--fg:#f5f5f5;--muted:#9b9b9d;--surface:#222224;--surface2:#2d2d30;--outline:#38383b;--header-h:60px;--app-height:100dvh;--app-full-height:100dvh}
@@ -434,7 +434,7 @@ html.full-screen-standalone .app.keyboard-open{
   </header>
   <main class="conversation" id="conversation" aria-label="Conversa">
     <section class="welcome" id="welcome">
-      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=45" alt="" aria-hidden="true">
+      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=46" alt="" aria-hidden="true">
       <h1 class="welcome-title" data-edit-key="welcome-title">Como posso ajudar?</h1>
     </section>
     <section class="messages" id="messages" aria-live="off"></section>
@@ -666,56 +666,10 @@ function chooseComposerMode(event){
  // An activation works only in the unused horizontal space of textarea.
  setSecretMode(tapX>boundary&&tapX<rect.width-6);
 }
-// v44: on iOS PWAs, place the composer above the next keyboard BEFORE focus.
-// This prevents WebKit's focus-time visibility check from panning the page.
-let lastStableKeyboardCover=0;
-let preLiftPending=false;
-let preLiftResetTimer=null;
-let keyboardCoverStabilityTimer=null;
-function usesIOSStandaloneKeyboard(){
- const ios=/iphone|ipad|ipod/i.test(navigator.userAgent)
-  || (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
- return ios&&(window.matchMedia('(display-mode: standalone)').matches
-  || navigator.standalone===true)&&screen.height>screen.width;
-}
-function prepareComposerFocus(){
- if(!usesIOSStandaloneKeyboard()||editing||generating)return;
- if(lastStableKeyboardCover>130&&lastStableKeyboardCover<Math.round(screen.height)*.85){
-  preLiftPending=true;
-  document.documentElement.style.setProperty('--keyboard-cover',lastStableKeyboardCover+'px');
-  void composerRegion.getBoundingClientRect().bottom;
-  clearTimeout(preLiftResetTimer);
-  preLiftResetTimer=setTimeout(()=>{
-   if(!preLiftPending)return;
-   preLiftPending=false;
-   scheduleViewportUpdate();
-  },1100);
- }
-}
-prompt.addEventListener('pointerdown',event=>{
- chooseComposerMode(event);
- if(event.pointerType==='touch'&&document.activeElement!==prompt)prepareComposerFocus();
-});
-prompt.addEventListener('mousedown',event=>{
- if(event.button!==0||!usesIOSStandaloneKeyboard()||document.activeElement===prompt)return;
- prepareComposerFocus();
- prompt.focus({preventScroll:true});
- // Allow the native caret-placement gesture when text already exists.
- if(!prompt.value.length)event.preventDefault();
-});
-// iOS may offer Copy/Paste/AutoFill after a second tap in an already-focused
-// empty field. Suppress that default text-editing gesture ONLY when the empty
-// composer is already focused. The first tap, real typing, autocorrect and
-// caret relocation in NONEMPTY text remain native. The secret hit zone is
-// processed on pointerdown (or the existing touchstart fallback) beforehand.
+// v46: WebKit must finish the native tap and focus before the app moves the input.
+prompt.addEventListener('pointerdown',chooseComposerMode);
+// v46: allow ordinary iOS text focus and touch-to-reopen.
 prompt.addEventListener('contextmenu',event=>event.preventDefault());
-prompt.addEventListener('touchstart',event=>{
- if(!editing && !generating && document.activeElement===prompt &&
-    prompt.value.length===0 && event.touches.length===1){
-  event.preventDefault();
- }
-},{passive:false});
-
 if(!window.PointerEvent)prompt.addEventListener('touchstart',event=>{
  if(event.touches.length===1)chooseComposerMode(event.touches[0]);
 },{passive:true});
@@ -956,7 +910,7 @@ function parseRequest(question){
 }
 async function fetchListFile(category){
  if(!category||!/^[a-z0-9]+$/.test(category))throw Error('categoria invalida');
- const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=45&ts='+Date.now(),{cache:'no-store'});
+ const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=46&ts='+Date.now(),{cache:'no-store'});
  if(!response.ok)throw Error('lista nao disponivel');
  const raw=await response.text();
  return raw.replace(/^\uFEFF/,'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -1172,7 +1126,7 @@ document.getElementById('recentList').addEventListener('click',event=>{
 });
 document.getElementById('modelButton').addEventListener('click',()=>{sidebar.classList.remove('open');backdrop.classList.remove('open');modelPopover.classList.toggle('open');});
 document.getElementById('modelClose').addEventListener('click',closeOverlays);
-document.getElementById('addButton').addEventListener('click',()=>{if(didLongPress){didLongPress=false;return;}if(!editing){showToast('Conversa por texto');prepareComposerFocus();prompt.focus({preventScroll:true});}});
+document.getElementById('addButton').addEventListener('click',()=>{if(didLongPress){didLongPress=false;return;}if(!editing){showToast('Conversa por texto');prompt.focus({preventScroll:true});}});
 scroller.addEventListener('touchstart',()=>{modelPopover.classList.remove('open');},{passive:true});
 // v37: the unobtrusive reveal cue is ONLY the ChatGPT header chevron.
 // t=0: hide the chevron; t=5s: restore it; t=6s: begin a smooth
@@ -1459,6 +1413,18 @@ try{
   savedOffsets=cleanProfiles({shared:old,closed:old,open:old});
  }
 }catch(error){/* localStorage can be disabled */}
+// v46: diagnostics showed different outer composer offsets for open and closed
+// states. Align them once, without changing any other editing/peek settings.
+const FOOTER_V46_MIGRATION='gpt-force-footer-align-v46';
+try{
+ if(localStorage.getItem(FOOTER_V46_MIGRATION)!=='1'){
+  savedOffsets.open['composer-region']=savedOffsets.closed['composer-region']||0;
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(savedOffsets));
+  localStorage.setItem(FOOTER_V46_MIGRATION,'1');
+ }
+}catch(error){
+ savedOffsets.open['composer-region']=savedOffsets.closed['composer-region']||0;
+}
 let draftOffsets=cloneProfiles(savedOffsets);
 let editing=false;
 let selectedElement='composer-region';
@@ -1910,7 +1876,7 @@ function makeLayoutBackup(){
  return {
   format:LAYOUT_BACKUP_FORMAT,
   schemaVersion:LAYOUT_BACKUP_SCHEMA,
-  appVersion:45,
+  appVersion:46,
   exportedAt:new Date().toISOString(),
   settings:cloneProfiles(editing?draftOffsets:savedOffsets)
  };
@@ -2099,26 +2065,9 @@ function resizeToViewport(){
  const shrink=Math.max(0,baselineHeight-h);
  const closedGap=Math.max(0,fullHeight-baselineHeight);
  const fade=Math.min(1,shrink/Math.max(1,closedGap+50));
+ // v46: only move the footer when the visual viewport actually reports the keyboard.
  const keyboardCover=fullScreen?Math.round(shrink+closedGap*fade):0;
- if(open&&fullScreen){
-  clearTimeout(preLiftResetTimer);preLiftResetTimer=null;
-  preLiftPending=false;
-  clearTimeout(keyboardCoverStabilityTimer);
-  const measured=keyboardCover;
-  keyboardCoverStabilityTimer=setTimeout(()=>{
-   if(measured>130&&measured<Math.round(screen.height)*.85)
-    lastStableKeyboardCover=measured;
-  },100);
- }else if(!open){
-  clearTimeout(keyboardCoverStabilityTimer);keyboardCoverStabilityTimer=null;
-  if(document.activeElement!==prompt){
-   preLiftPending=false;
-   clearTimeout(preLiftResetTimer);preLiftResetTimer=null;
-  }
- }
- const appliedCover=fullScreen&&preLiftPending&&!open
-  ?lastStableKeyboardCover:keyboardCover;
- root.style.setProperty('--keyboard-cover',appliedCover+'px');
+ root.style.setProperty('--keyboard-cover',keyboardCover+'px');
 
  // Keep --app-height scoped to measurements/editor controls; unlike v41,
  // it never changes the canvas size of the standalone app.
@@ -2142,27 +2091,16 @@ if(window.visualViewport){
 }
 window.addEventListener('resize',scheduleViewportUpdate);
 window.addEventListener('scroll',()=>{
- // Cinema's watchViewport prevents the document from scrolling as a whole;
- // only the transcript itself is allowed to scroll.
+ // Ignore iOS scroll signals without actual document movement.
  if(document.documentElement.classList.contains('full-screen-standalone')&&window.scrollY!==0){
   window.scrollTo(0,0);
+  scheduleViewportUpdate();
  }
- scheduleViewportUpdate();
 },{passive:true});
-window.addEventListener('orientationchange',()=>{
- clearTimeout(preLiftResetTimer);
- clearTimeout(keyboardCoverStabilityTimer);
- preLiftResetTimer=null;keyboardCoverStabilityTimer=null;
- preLiftPending=false;lastStableKeyboardCover=0;
- setTimeout(scheduleViewportUpdate,250);
-});
+window.addEventListener('orientationchange',()=>setTimeout(scheduleViewportUpdate,250));
 for(const phase of ['focus','blur'])prompt.addEventListener(phase,()=>{
  scheduleViewportUpdate();
- if(phase==='blur'){
-  preLiftPending=false;
-  clearTimeout(preLiftResetTimer);preLiftResetTimer=null;
-  requestAnimationFrame(()=>{if(!prompt.value)resetPromptHeight();});
- }
+ if(phase==='blur')requestAnimationFrame(()=>{if(!prompt.value)resetPromptHeight();});
  // iOS animates the visual viewport over multiple frames on keyboard transitions.
  for(const delay of [60,180,360,600])setTimeout(scheduleViewportUpdate,delay);
 });
@@ -2174,7 +2112,7 @@ refreshComposerMeasure();
 // v21: atualização discreta no PRIMEIRO item das conversas recentes.
 // Nenhum redirecionamento automático, nem durante o force nem numa conversa aberta.
 // A consulta bypassa cache HTTP e volta a ser feita a cada abertura do menu.
-const GPT_FORCE_VERSION=45;
+const GPT_FORCE_VERSION=46;
 const DEFAULT_RECENT_TITLE='Quando usar por que e porque';
 let latestAvailableVersion=null;
 let updateCheckSequence=0;
@@ -2261,7 +2199,7 @@ function diagSample(reason){
   fullScreen:root.classList.contains('full-screen-standalone'),
   keyboardClass:app.classList.contains('keyboard-open'),
   keyboardIsOpen,hasMessages:app.classList.contains('has-messages'),
-  editing,preLiftPending,lastStableKeyboardCover,baselineHeight,
+  editing,baselineHeight,focusStrategy:'native',
   promptFocused:document.activeElement===prompt
  };
  const cssVar=k=>root.style.getPropertyValue(k).trim();
@@ -2330,7 +2268,7 @@ diagExportButton.addEventListener('click',()=>{
  if(!diagEntries.length)return;
  if(diagRecording)diagSample('export');
  const exported=new Date().toISOString();
- const payload={format:'joaninha-keyboard-log',schemaVersion:1,appVersion:45,
+ const payload={format:'joaninha-keyboard-log',schemaVersion:1,appVersion:46,
   startedAt:diagStarted,exportedAt:exported,
   privacy:'Somente eventos e medidas de tela, sem conteúdo digitado nem códigos secretos',
   device:{userAgent:navigator.userAgent,language:navigator.language,
