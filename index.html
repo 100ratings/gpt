@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ChatGPT">
-<link rel="manifest" href="manifest.webmanifest?v=47">
-<link rel="apple-touch-icon" href="icon-192.png?v=47">
+<link rel="manifest" href="manifest.webmanifest?v=48">
+<link rel="apple-touch-icon" href="icon-192.png?v=48">
 <title>ChatGPT</title>
 <style>
 :root{color-scheme:dark;--bg:#000;--fg:#f5f5f5;--muted:#9b9b9d;--surface:#222224;--surface2:#2d2d30;--outline:#38383b;--header-h:60px;--app-height:100dvh;--app-full-height:100dvh}
@@ -34,20 +34,12 @@ button,.app-header,.welcome,.footer-caption,.side-panel,.popover,.edit-panel,.to
 /* Anchor the whole app to the visual (keyboard-unobscured) viewport.
    iOS Safari can scroll the visual viewport inside the layout viewport on focus. */
 .app{width:var(--viewport-width,100%);height:var(--app-height);min-height:0;top:var(--viewport-top,0px);left:var(--viewport-left,0px);background:var(--bg);overflow:hidden;position:fixed;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:0;--composer-bottom-offset:env(safe-area-inset-bottom,0px)}
-/* v47: log-backed iOS PWA keyboard scroll lock.
-   On every keyboard opening in v46 WebKit briefly scrolled window.scrollY
-   by 386px, moving the header to y=-356 before scrollTo could undo it.
-   Root/body are fixed and non-scrollable; only the transcript and editor
-   retain their own scrolling. The app retains its full screen.height canvas. */
+/* v48: undo the v47 root scroll lock, which clipped 47 CSS pixels
+   below WebKit's layout viewport on the user's iPhone. Restore v46's
+   physical-screen-height document while leaving the keyboard input native. */
 html.full-screen-standalone,
-html.full-screen-standalone body{
- position:fixed;
- top:0;left:0;
- width:100%;
- height:var(--app-full-height,100%);
- overflow:hidden;
- overscroll-behavior:none;
-}
+html.full-screen-standalone body{height:var(--app-full-height,100%)}
+html.full-screen-standalone body{position:relative}
 /* v43: like Cinema's full-screen PWA, the installed app always starts at top 0.
    Never use VisualViewport.pageTop to move the entire interface: WebKit may
    change pageTop during focus and repeatedly pan the page when the canvas moves.
@@ -442,7 +434,7 @@ html.full-screen-standalone .app.keyboard-open{
   </header>
   <main class="conversation" id="conversation" aria-label="Conversa">
     <section class="welcome" id="welcome">
-      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=47" alt="" aria-hidden="true">
+      <img class="welcome-mark" data-edit-key="welcome-logo" src="welcome-logo.png?v=48" alt="" aria-hidden="true">
       <h1 class="welcome-title" data-edit-key="welcome-title">Como posso ajudar?</h1>
     </section>
     <section class="messages" id="messages" aria-live="off"></section>
@@ -918,7 +910,7 @@ function parseRequest(question){
 }
 async function fetchListFile(category){
  if(!category||!/^[a-z0-9]+$/.test(category))throw Error('categoria invalida');
- const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=47&ts='+Date.now(),{cache:'no-store'});
+ const response=await fetch('listas/'+encodeURIComponent(category)+'.txt?v=48&ts='+Date.now(),{cache:'no-store'});
  if(!response.ok)throw Error('lista nao disponivel');
  const raw=await response.text();
  return raw.replace(/^\uFEFF/,'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -1884,7 +1876,7 @@ function makeLayoutBackup(){
  return {
   format:LAYOUT_BACKUP_FORMAT,
   schemaVersion:LAYOUT_BACKUP_SCHEMA,
-  appVersion:47,
+  appVersion:48,
   exportedAt:new Date().toISOString(),
   settings:cloneProfiles(editing?draftOffsets:savedOffsets)
  };
@@ -2120,7 +2112,7 @@ refreshComposerMeasure();
 // v21: atualização discreta no PRIMEIRO item das conversas recentes.
 // Nenhum redirecionamento automático, nem durante o force nem numa conversa aberta.
 // A consulta bypassa cache HTTP e volta a ser feita a cada abertura do menu.
-const GPT_FORCE_VERSION=47;
+const GPT_FORCE_VERSION=48;
 const DEFAULT_RECENT_TITLE='Quando usar por que e porque';
 let latestAvailableVersion=null;
 let updateCheckSequence=0;
@@ -2281,7 +2273,7 @@ diagExportButton.addEventListener('click',()=>{
  if(!diagEntries.length)return;
  if(diagRecording)diagSample('export');
  const exported=new Date().toISOString();
- const payload={format:'joaninha-keyboard-log',schemaVersion:1,appVersion:47,
+ const payload={format:'joaninha-keyboard-log',schemaVersion:1,appVersion:48,
   startedAt:diagStarted,exportedAt:exported,
   privacy:'Somente eventos e medidas de tela, sem conteúdo digitado nem códigos secretos',
   device:{userAgent:navigator.userAgent,language:navigator.language,
